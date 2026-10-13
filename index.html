@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>LASS Brand Clothes | Kasi Streetwear & Apparel</title>
+    <meta name="description" content="LASS Brand Clothes – South African Kasi streetwear mobile shopping app featuring printed t-shirts, 2026 drops, secure in-app payments (Card, Capitec Pay, Instant EFT), and PAXI PEP delivery." />
+    
+    <!-- OpenGraph & Social -->
+    <meta property="og:title" content="LASS Brand Clothes | Kasi Streetwear & Apparel" />
+    <meta property="og:description" content="Harvest ke LASS – The only Kasi wear that drives the world insane. South African streetwear shopping app." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_ZA" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LASS Brand Clothes" />
+    <meta name="twitter:description" content="South African Kasi streetwear shopping app with WhatsApp ordering." />
+
+    <!-- PWA & Mobile Web Capabilities -->
+    <meta name="theme-color" content="#047857" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LASS Clothes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    
+    <!-- Font Preconnect: Syne & Plus Jakarta Sans for high-fashion streetwear feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-zinc-950 text-white antialiased min-h-screen selection:bg-orange-500 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Service worker registration
+      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.log('SW registration skipped in preview or unsupported:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

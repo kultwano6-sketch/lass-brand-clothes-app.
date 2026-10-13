@@ -1,0 +1,6 @@
+{
+  "name": "LASS Brand Clothes",
+  "description": "LASS Brand Clothes – South African Kasi streetwear mobile shopping app featuring printed t-shirts, 2026 drops, secure in-app payments (Card, Capitec Pay, Instant EFT), and PAXI PEP delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

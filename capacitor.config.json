@@ -1,0 +1,9 @@
+{
+  "appId": "za.co.lassbrandclothes.app",
+  "appName": "LASS Brand Clothes",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

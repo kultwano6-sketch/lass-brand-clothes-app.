@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Rich Black & Emerald Green Gradient Base -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#052e16"/>
+      <stop offset="50%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <!-- High-energy Orange Accent -->
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <!-- Royal Blue Accent -->
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Black and Emerald Green Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Streetwear Outer Borders -->
+  <rect x="20" y="20" width="472" height="472" rx="84" fill="none" stroke="#ffffff" stroke-opacity="0.15" stroke-width="2"/>
+  <rect x="28" y="28" width="456" height="456" rx="76" fill="none" stroke="url(#orangeGrad)" stroke-opacity="0.6" stroke-width="2"/>
+
+  <!-- Top-Right Geometric Accents: Blue & Orange -->
+  <circle cx="430" cy="80" r="12" fill="url(#orangeGrad)"/>
+  <circle cx="400" cy="80" r="6" fill="url(#blueGrad)"/>
+
+  <!-- Bold White LASS Wordmark with crisp black drop shadow -->
+  <g fill="#ffffff" font-family="'Syne', 'Arial Black', sans-serif" font-weight="900">
+    <text x="256" y="275" font-size="138" text-anchor="middle" letter-spacing="6" filter="drop-shadow(0 6px 16px rgba(0,0,0,0.8))">LASS</text>
+  </g>
+
+  <!-- Tagline in High-Energy Orange: HARVEST KE LASS -->
+  <g fill="url(#orangeGrad)" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="800">
+    <text x="256" y="335" font-size="24" text-anchor="middle" letter-spacing="8">HARVEST KE LASS</text>
+  </g>
+
+  <!-- Sub-label in Royal Blue & Crisp White: KASI STREETWEAR • SA -->
+  <g fill="#ffffff" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="700">
+    <rect x="136" y="362" width="240" height="28" rx="14" fill="#1e3a8a" fill-opacity="0.8"/>
+    <text x="256" y="381" font-size="13" text-anchor="middle" letter-spacing="3" fill="#38bdf8">KASI STREETWEAR • ZA</text>
+  </g>
+</svg>
