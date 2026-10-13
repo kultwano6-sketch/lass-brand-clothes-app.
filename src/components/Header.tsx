@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package } from 'lucide-react';
+import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package, Smartphone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { BrandConfig } from '../types';
@@ -16,6 +16,7 @@ interface HeaderProps {
   setSearchQuery: (q: string) => void;
   onOpenWishlist: () => void;
   onOpenOrderStatus: () => void;
+  onOpenAppIcon?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   setSearchQuery,
   onOpenWishlist,
   onOpenOrderStatus,
+  onOpenAppIcon,
 }) => {
   const { totalItems, setIsCartOpen } = useCart();
   const { totalWishlistCount } = useWishlist();
@@ -119,13 +121,11 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2.5 cursor-pointer select-none group relative"
             title="LASS Brand Clothes"
           >
-            <div
-              className="w-9 h-9 rounded-xl bg-black border-2 border-emerald-500/80 group-hover:border-orange-500 flex items-center justify-center font-display font-black text-white text-lg tracking-wider shadow-md transition-all group-active:scale-95"
-            >
-              <span className="text-emerald-400 group-hover:text-orange-400 transition-colors">
-                L
-              </span>
-            </div>
+            <img
+              src="/logo.svg"
+              alt="LASS Brand Clothes Logo"
+              className="w-9 h-9 rounded-xl bg-black border border-emerald-500/80 group-hover:border-orange-500 shadow-md transition-all group-active:scale-95 object-contain"
+            />
 
             <div className="flex flex-col">
               <span className="font-display font-black text-lg sm:text-xl tracking-wider text-white uppercase group-hover:text-emerald-400 transition-colors leading-none">
@@ -193,6 +193,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Size Guide
           </button>
+          {onOpenAppIcon && (
+            <button
+              onClick={onOpenAppIcon}
+              className="px-2.5 py-1.5 rounded-lg text-orange-400 hover:text-white hover:bg-orange-950/40 border border-orange-500/30 transition-colors font-bold text-xs flex items-center gap-1.5"
+              title="View & Download official LASS APK app icon"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-orange-400" />
+              <span>APK Icon</span>
+            </button>
+          )}
         </nav>
 
         {/* Right Actions: Search, Track, Wishlist, Bag */}
@@ -373,6 +383,18 @@ export const Header: React.FC<HeaderProps> = ({
               <ShieldCheck className="w-4 h-4" />
               <span>Google Sites Brand Audit Details</span>
             </button>
+            {onOpenAppIcon && (
+              <button
+                onClick={() => {
+                  onOpenAppIcon();
+                  setMobileMenuOpen(false);
+                }}
+                className="py-2 px-2 hover:bg-zinc-900 rounded text-left flex items-center gap-1.5 text-orange-400 font-bold"
+              >
+                <Smartphone className="w-4 h-4 text-orange-400" />
+                <span>LASS App Icon &amp; APK Package</span>
+              </button>
+            )}
           </div>
         </div>
       )}

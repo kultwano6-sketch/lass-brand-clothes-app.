@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Phone, Truck, ShieldCheck, Ruler, ExternalLink, Heart, Package } from 'lucide-react';
+import { MessageSquare, Phone, Truck, ShieldCheck, Ruler, ExternalLink, Heart, Package, Smartphone } from 'lucide-react';
 import { BrandConfig } from '../types';
 
 interface FooterProps {
@@ -9,6 +9,7 @@ interface FooterProps {
   onOpenPaxiInfo: () => void;
   onOpenOrderStatus: () => void;
   onOpenAdminPortal?: () => void;
+  onOpenAppIcon?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -18,6 +19,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenPaxiInfo,
   onOpenOrderStatus,
   onOpenAdminPortal,
+  onOpenAppIcon,
 }) => {
   const footerTapCountRef = React.useRef(0);
   const footerLastTapTimeRef = React.useRef(0);
@@ -57,9 +59,11 @@ export const Footer: React.FC<FooterProps> = ({
               className="flex items-center gap-2.5 cursor-pointer select-none group"
               title="LASS Brand Clothes"
             >
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 flex items-center justify-center font-display font-black text-white text-base shadow-sm transition-colors">
-                L
-              </div>
+              <img
+                src="/logo.svg"
+                alt="LASS Brand Clothes"
+                className="w-9 h-9 rounded-xl bg-black border border-emerald-500/80 group-hover:border-orange-500 shadow-sm transition-all object-contain"
+              />
               <span className="font-display font-black text-white text-lg tracking-wider">
                 {brandConfig.brandName}
               </span>
@@ -117,6 +121,17 @@ export const Footer: React.FC<FooterProps> = ({
                   <span>Brand Audit Data</span>
                 </button>
               </li>
+              {onOpenAppIcon && (
+                <li>
+                  <button
+                    onClick={onOpenAppIcon}
+                    className="hover:text-orange-300 transition-colors flex items-center gap-1.5 text-orange-400 font-bold"
+                  >
+                    <Smartphone className="w-3.5 h-3.5 text-orange-400" />
+                    <span>App Icon &amp; APK Package</span>
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
 

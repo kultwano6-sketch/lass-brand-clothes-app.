@@ -20,6 +20,7 @@ import { AdminPortalModal } from './components/AdminPortalModal';
 import { WishlistModal } from './components/WishlistModal';
 import { OrderStatusModal } from './components/OrderStatusModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { AppIconModal } from './components/AppIconModal';
 import { SearchAndFilters, SortOption } from './components/SearchAndFilters';
 
 const PRODUCTS_STORAGE_KEY = 'lass_products_catalog_v1';
@@ -89,6 +90,7 @@ function MainShopContent() {
   const [hasOwnerUnlocked, setHasOwnerUnlocked] = useState<boolean>(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState<boolean>(false);
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState<boolean>(false);
+  const [isAppIconOpen, setIsAppIconOpen] = useState<boolean>(false);
   const [orderStatusRef, setOrderStatusRef] = useState<string>('');
 
   // Layout view options (1 or 2 cols on mobile)
@@ -251,6 +253,7 @@ function MainShopContent() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onOpenWishlist={() => setIsWishlistOpen(true)}
+        onOpenAppIcon={() => setIsAppIconOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -325,6 +328,18 @@ function MainShopContent() {
               >
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <span>Audited Google Sites Prices</span>
+              </button>
+              <button
+                onClick={() => setIsAppIconOpen(true)}
+                className="flex items-center gap-1.5 hover:text-white text-orange-400 font-bold transition-colors"
+                title="View & Download official LASS APK app icon"
+              >
+                <img
+                  src="/icon-192.png"
+                  alt="APK Icon"
+                  className="w-4 h-4 rounded-md border border-orange-500/60 object-contain"
+                />
+                <span>Official APK Icon (512px)</span>
               </button>
               <div className="flex items-center gap-1.5 text-zinc-300">
                 <CreditCard className="w-4 h-4 text-orange-400" />
@@ -452,6 +467,7 @@ function MainShopContent() {
           setIsOrderStatusOpen(true);
         }}
         onOpenAdminPortal={handleOpenOwnerPortal}
+        onOpenAppIcon={() => setIsAppIconOpen(true)}
       />
 
       {/* Modals & Drawers */}
@@ -520,6 +536,12 @@ function MainShopContent() {
         onClose={() => setIsWishlistOpen(false)}
         products={products}
         onSelectProduct={(p) => setSelectedProduct(p)}
+      />
+
+      <AppIconModal
+        isOpen={isAppIconOpen}
+        onClose={() => setIsAppIconOpen(false)}
+        brandConfig={brandConfig}
       />
 
       {/* Floating Owner Quick Bar (Only visible once owner unlocks via 5 taps on the L mark) */}

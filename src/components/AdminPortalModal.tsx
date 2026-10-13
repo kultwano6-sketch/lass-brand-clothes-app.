@@ -1896,6 +1896,89 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Official LASS App & APK Icon Assets */}
+                  <div className="p-5 rounded-2xl bg-zinc-900 border border-emerald-500/40 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src="/icon-192.png"
+                          alt="LASS App Icon"
+                          className="w-10 h-10 rounded-xl bg-black border border-emerald-500 shadow-md object-contain"
+                        />
+                        <div>
+                          <h4 className="font-display font-black text-white text-sm flex items-center gap-2">
+                            <span>Official LASS App Icon (Android APK &amp; PWA)</span>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/40">
+                              Active in APK
+                            </span>
+                          </h4>
+                          <p className="text-zinc-400 text-[11px]">
+                            Brand Owner LASS Typographic Emblem &bull; HARVEST KE LASS &bull; Safe Zone Verified
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-xl bg-black border border-zinc-800 flex items-center gap-3">
+                        <img
+                          src="/icon-512.png"
+                          alt="512px APK Icon"
+                          className="w-12 h-12 rounded-2xl border border-zinc-700 object-cover shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-bold text-white text-xs block">Standard APK Icon</span>
+                          <span className="text-[10px] text-zinc-400 block font-mono">512 × 512 px</span>
+                          <a
+                            href="/icon-512.png"
+                            download="lass-app-icon-512x512.png"
+                            className="text-orange-400 hover:text-orange-300 text-[11px] font-bold flex items-center gap-1 mt-0.5"
+                          >
+                            <Download className="w-3 h-3" /> Download
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-black border border-zinc-800 flex items-center gap-3">
+                        <img
+                          src="/icon-maskable-512.png"
+                          alt="Adaptive Maskable Icon"
+                          className="w-12 h-12 rounded-full border border-blue-500/60 object-cover shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-bold text-white text-xs block">Adaptive Maskable</span>
+                          <span className="text-[10px] text-zinc-400 block font-mono">512 × 512 px Safe-Zone</span>
+                          <a
+                            href="/icon-maskable-512.png"
+                            download="lass-app-icon-maskable-512x512.png"
+                            className="text-blue-400 hover:text-blue-300 text-[11px] font-bold flex items-center gap-1 mt-0.5"
+                          >
+                            <Download className="w-3 h-3" /> Download
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-black border border-zinc-800 flex items-center gap-3">
+                        <img
+                          src="/icon-1024.png"
+                          alt="1024px Play Store Icon"
+                          className="w-12 h-12 rounded-2xl border border-orange-500/60 object-cover shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-bold text-white text-xs block">Play Store Master</span>
+                          <span className="text-[10px] text-zinc-400 block font-mono">1024 × 1024 px HD</span>
+                          <a
+                            href="/icon-1024.png"
+                            download="lass-app-icon-1024x1024.png"
+                            className="text-emerald-400 hover:text-emerald-300 text-[11px] font-bold flex items-center gap-1 mt-0.5"
+                          >
+                            <Download className="w-3 h-3" /> Download
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Reset Catalog */}
                   <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-between">
                     <div>

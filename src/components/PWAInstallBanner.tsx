@@ -66,9 +66,11 @@ export const PWAInstallBanner: React.FC = () => {
     <>
       <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-40 bg-zinc-900/95 border border-emerald-500/40 rounded-3xl p-4 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 duration-300">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black font-display flex items-center justify-center shrink-0 text-lg shadow-md">
-            L
-          </div>
+          <img
+            src="/icon-192.png"
+            alt="LASS App Icon"
+            className="w-11 h-11 rounded-2xl border border-emerald-500/60 object-cover shrink-0 bg-black shadow-md"
+          />
 
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-xs sm:text-sm text-white font-display">
