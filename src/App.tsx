@@ -21,6 +21,7 @@ import { WishlistModal } from './components/WishlistModal';
 import { OrderStatusModal } from './components/OrderStatusModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { AppIconModal } from './components/AppIconModal';
+import { PaymentStatusPage } from './components/PaymentStatusPage';
 import { SearchAndFilters, SortOption } from './components/SearchAndFilters';
 
 const PRODUCTS_STORAGE_KEY = 'lass_products_catalog_v1';
@@ -93,6 +94,24 @@ function MainShopContent() {
   const [isAppIconOpen, setIsAppIconOpen] = useState<boolean>(false);
   const [orderStatusRef, setOrderStatusRef] = useState<string>('');
 
+  // PayFast Return / Cancel Route State
+  const [paymentView, setPaymentView] = useState<{
+    mode: 'return' | 'cancel';
+    orderId: string;
+  } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('orderId') || '';
+    if (path.includes('/payment/return') || params.get('payment') === 'return') {
+      return { mode: 'return', orderId };
+    }
+    if (path.includes('/payment/cancel') || params.get('payment') === 'cancel') {
+      return { mode: 'cancel', orderId };
+    }
+    return null;
+  });
+
   // Layout view options (1 or 2 cols on mobile)
   const [mobileCols, setMobileCols] = useState<1 | 2>(2);
 
@@ -120,6 +139,7 @@ function MainShopContent() {
     };
     checkHashAndParams();
     window.addEventListener('hashchange', checkHashAndParams);
+    window.addEventListener('popstate', checkHashAndParams);
 
     // Keyboard shortcut for owner: Alt + O
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -132,6 +152,7 @@ function MainShopContent() {
 
     return () => {
       window.removeEventListener('hashchange', checkHashAndParams);
+      window.removeEventListener('popstate', checkHashAndParams);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -257,8 +278,26 @@ function MainShopContent() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* HERO SECTION: Green, White, Blue, Orange and Black Streetwear Palette */}
-        <section className="relative rounded-3xl overflow-hidden border border-emerald-800/40 bg-gradient-to-br from-emerald-950 via-zinc-950 to-blue-950 p-6 sm:p-10 lg:p-14 mb-10 shadow-2xl">
+        {paymentView ? (
+          <PaymentStatusPage
+            orderId={paymentView.orderId}
+            mode={paymentView.mode}
+            brandConfig={brandConfig}
+            onContinueShopping={() => {
+              setPaymentView(null);
+              window.history.pushState({}, '', '/');
+            }}
+            onOpenTrackOrder={(ref) => {
+              setPaymentView(null);
+              window.history.pushState({}, '', '/');
+              setOrderStatusRef(ref);
+              setIsOrderStatusOpen(true);
+            }}
+          />
+        ) : (
+          <>
+            {/* HERO SECTION: Green, White, Blue, Orange and Black Streetwear Palette */}
+            <section className="relative rounded-3xl overflow-hidden border border-emerald-800/40 bg-gradient-to-br from-emerald-950 via-zinc-950 to-blue-950 p-6 sm:p-10 lg:p-14 mb-10 shadow-2xl">
           {/* Streetwear ambient gradients & graphics */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -454,6 +493,8 @@ function MainShopContent() {
             el?.scrollIntoView({ behavior: 'smooth' });
           }}
         />
+          </>
+        )}
       </main>
 
       {/* Footer (No client-visible admin links) */}

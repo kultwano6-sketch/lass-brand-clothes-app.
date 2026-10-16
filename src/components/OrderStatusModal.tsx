@@ -54,13 +54,32 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!searchInput.trim()) return;
 
     setHasSearched(true);
     const found = findOrderByReference(searchInput);
-    setCurrentOrder(found);
+    if (found) {
+      setCurrentOrder(found);
+      return;
+    }
+
+    // Fallback: Query server for order status
+    try {
+      const cleanRef = searchInput.trim().replace(/^#/, '');
+      const res = await fetch(`/api/payfast/order-status/${encodeURIComponent(cleanRef)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setCurrentOrder(data as SubmittedOrder);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Server order lookup error:', err);
+    }
+    setCurrentOrder(null);
   };
 
   const handleSelectRecent = (order: SubmittedOrder) => {
@@ -72,6 +91,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
   // Status mapping and steps
   const getStatusStepIndex = (status: SubmittedOrder['status']) => {
     switch (status) {
+      case 'pending_payment':
       case 'whatsapp_generated':
         return 0;
       case 'pending_verification':

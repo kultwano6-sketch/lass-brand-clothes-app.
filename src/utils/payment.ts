@@ -1,6 +1,6 @@
 import { formatZAR } from './whatsapp';
 
-export type PaymentMethodType = 'card' | 'instant_eft' | 'snapscan' | 'manual_eft' | 'whatsapp';
+export type PaymentMethodType = 'payfast' | 'card' | 'instant_eft' | 'snapscan' | 'manual_eft' | 'whatsapp';
 
 export interface BankOption {
   id: string;

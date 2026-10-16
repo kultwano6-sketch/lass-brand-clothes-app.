@@ -60,12 +60,12 @@ export interface SubmittedOrder {
   estimatedTotal: number;
   whatsappMessageText: string;
   whatsappUrl: string;
-  status: 'whatsapp_generated' | 'pending_verification' | 'payment_confirmed' | 'dispatched_paxi' | 'ready_for_collection' | 'completed';
+  status: 'pending_payment' | 'whatsapp_generated' | 'pending_verification' | 'payment_confirmed' | 'dispatched_paxi' | 'ready_for_collection' | 'completed' | 'cancelled';
   paxiTrackingCode?: string;
   statusNotes?: string;
   // In-App Payment Information
-  paymentMethod?: 'card' | 'instant_eft' | 'snapscan' | 'manual_eft' | 'whatsapp';
-  paymentStatus?: 'paid' | 'pending' | 'failed';
+  paymentMethod?: 'payfast' | 'card' | 'instant_eft' | 'snapscan' | 'manual_eft' | 'whatsapp';
+  paymentStatus?: 'paid' | 'pending' | 'failed' | 'cancelled';
   transactionId?: string;
   paidAt?: string;
   paymentDetails?: {

@@ -170,6 +170,21 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       setSavedOrders(orders.length > 0 ? orders : DEMO_SAMPLE_ORDERS);
       setLocalProducts(products);
       setConfigForm(brandConfig);
+
+      // Fetch live server orders from persistent store
+      fetch('/api/orders')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+            setSavedOrders(data.orders);
+            try {
+              localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(data.orders));
+            } catch (e) {
+              console.warn(e);
+            }
+          }
+        })
+        .catch(() => {});
       // Extra security measure: portal is locked whenever opened, requiring custom PIN
       setIsAuthenticated(false);
       setAdminPin('');
