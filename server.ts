@@ -38,7 +38,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
  * computes exact ZAR totals, creates a persistent pending order record, and generates
  * the signed PayFast hosted checkout payload.
  */
-app.post('/api/payfast/create-checkout', (req: Request, res: Response) => {
+app.post('/api/payfast/create-checkout', async (req: Request, res: Response) => {
   try {
     const { customer, items, customOrderRef } = req.body;
 
@@ -180,7 +180,7 @@ app.post('/api/payfast/create-checkout', (req: Request, res: Response) => {
       )}).`,
     };
 
-    orderStore.save(newOrder);
+    await orderStore.save(newOrder);
 
     // Create PayFast hosted checkout payload with server-side signature
     const payfastData = createHostedCheckoutPayload({
@@ -236,7 +236,7 @@ app.post('/api/payfast/notify', async (req: Request, res: Response) => {
       return res.status(400).send('Missing m_payment_id');
     }
 
-    const order = orderStore.get(orderNumber);
+    const order = await orderStore.get(orderNumber);
     if (!order) {
       console.error(
         `[PayFast ITN Error]: Order ${orderNumber} not found in database`
@@ -271,7 +271,7 @@ app.post('/api/payfast/notify', async (req: Request, res: Response) => {
         ? 'CANCELLED'
         : 'FAILED';
 
-    const { alreadyProcessed } = orderStore.recordPaymentResult(orderNumber, {
+    const { alreadyProcessed } = await orderStore.recordPaymentResult(orderNumber, {
       pfPaymentId: itnData.pf_payment_id || `PF-UNKNOWN-${Date.now()}`,
       paymentStatus,
       amountGross,
@@ -298,9 +298,9 @@ app.post('/api/payfast/notify', async (req: Request, res: Response) => {
  * Check verified payment status from server records.
  * The client MUST NOT mark an order paid based only on a browser redirect!
  */
-app.get('/api/payfast/order-status/:orderId', (req: Request, res: Response) => {
+app.get('/api/payfast/order-status/:orderId', async (req: Request, res: Response) => {
   const orderId = req.params.orderId;
-  const order = orderStore.get(orderId);
+  const order = await orderStore.get(orderId);
 
   if (!order) {
     return res.status(404).json({
@@ -329,8 +329,8 @@ app.get('/api/payfast/order-status/:orderId', (req: Request, res: Response) => {
  * GET /api/orders
  * Returns all orders from persistent store
  */
-app.get('/api/orders', (_req: Request, res: Response) => {
-  const orders = orderStore.getAll();
+app.get('/api/orders', async (_req: Request, res: Response) => {
+  const orders = await orderStore.getAll();
   return res.json({
     success: true,
     orders,
@@ -341,8 +341,8 @@ app.get('/api/orders', (_req: Request, res: Response) => {
  * GET /api/orders/:orderId
  * Returns single order
  */
-app.get('/api/orders/:orderId', (req: Request, res: Response) => {
-  const order = orderStore.get(req.params.orderId);
+app.get('/api/orders/:orderId', async (req: Request, res: Response) => {
+  const order = await orderStore.get(req.params.orderId);
   if (!order) {
     return res.status(404).json({ success: false, error: 'Order not found' });
   }
@@ -352,19 +352,26 @@ app.get('/api/orders/:orderId', (req: Request, res: Response) => {
 /**
  * POST /api/payfast/simulate-sandbox-itn
  * Sandbox & Developer Testing Endpoint
- * Simulates an incoming signed PayFast ITN callback for end-to-end verification
- * without requiring a publicly tunnelled webhook in local preview.
+ * Strictly disabled in production. Only available in sandbox mode when explicitly enabled.
  */
 app.post('/api/payfast/simulate-sandbox-itn', async (req: Request, res: Response) => {
   try {
     const config = getPayFastConfig();
-    const { orderNumber } = req.body;
 
+    // Security requirement: Securely disable simulation in production
+    if (!config.isSandbox || process.env.ALLOW_SANDBOX_SIMULATION !== 'true') {
+      return res.status(403).json({
+        success: false,
+        error: 'Sandbox ITN simulation is disabled in production. Payments require genuine PayFast cryptographic verification.',
+      });
+    }
+
+    const { orderNumber } = req.body;
     if (!orderNumber) {
       return res.status(400).json({ success: false, error: 'orderNumber is required' });
     }
 
-    const order = orderStore.get(orderNumber);
+    const order = await orderStore.get(orderNumber);
     if (!order) {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
@@ -390,7 +397,7 @@ app.post('/api/payfast/simulate-sandbox-itn', async (req: Request, res: Response
     itnPayload.signature = generatePayFastSignature(itnPayload, config.passphrase);
 
     // Process through the actual orderStore payment recorder
-    const { order: updatedOrder, alreadyProcessed } = orderStore.recordPaymentResult(
+    const { order: updatedOrder, alreadyProcessed } = await orderStore.recordPaymentResult(
       order.orderNumber,
       {
         pfPaymentId: itnPayload.pf_payment_id,

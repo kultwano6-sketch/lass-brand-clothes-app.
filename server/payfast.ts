@@ -1,4 +1,13 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
+
+export interface PayFastEnv {
+  PAYFAST_MERCHANT_ID?: string;
+  PAYFAST_MERCHANT_KEY?: string;
+  PAYFAST_PASSPHRASE?: string;
+  PAYFAST_SANDBOX?: string;
+  APP_URL?: string;
+  PUBLIC_APP_URL?: string;
+}
 
 export interface PayFastConfig {
   merchantId: string;
@@ -10,17 +19,13 @@ export interface PayFastConfig {
   appUrl: string;
 }
 
-export function getPayFastConfig(): PayFastConfig {
-  const isSandbox = process.env.PAYFAST_SANDBOX !== 'false';
-  const merchantId =
-    process.env.PAYFAST_MERCHANT_ID || (isSandbox ? '10000100' : '');
-  const merchantKey =
-    process.env.PAYFAST_MERCHANT_KEY || (isSandbox ? '46f0cd694581a' : '');
-  const passphrase = process.env.PAYFAST_PASSPHRASE || '';
-  const appUrl =
-    process.env.APP_URL ||
-    process.env.PUBLIC_APP_URL ||
-    'http://localhost:3000';
+export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
+  const e: PayFastEnv = env || (typeof process !== 'undefined' ? (process.env as PayFastEnv) : {}) || {};
+  const isSandbox = e.PAYFAST_SANDBOX !== 'false';
+  const merchantId = e.PAYFAST_MERCHANT_ID || (isSandbox ? '10000100' : '');
+  const merchantKey = e.PAYFAST_MERCHANT_KEY || (isSandbox ? '46f0cd694581a' : '');
+  const passphrase = e.PAYFAST_PASSPHRASE || '';
+  const appUrl = e.APP_URL || e.PUBLIC_APP_URL || 'http://localhost:3000';
 
   const baseUrl = isSandbox
     ? 'https://sandbox.payfast.co.za'
@@ -79,19 +84,22 @@ export function generatePayFastSignature(
  * Prepares the complete PayFast hosted checkout payload for an order.
  * Kept strictly server-side so merchant credentials and passphrases are NEVER leaked to client.
  */
-export function createHostedCheckoutPayload(params: {
-  orderNumber: string;
-  amount: number;
-  itemName: string;
-  itemDescription?: string;
-  nameFirst: string;
-  nameLast?: string;
-  emailAddress: string;
-  cellNumber?: string;
-  customStr1?: string;
-  customStr2?: string;
-}) {
-  const config = getPayFastConfig();
+export function createHostedCheckoutPayload(
+  params: {
+    orderNumber: string;
+    amount: number;
+    itemName: string;
+    itemDescription?: string;
+    nameFirst: string;
+    nameLast?: string;
+    emailAddress: string;
+    cellNumber?: string;
+    customStr1?: string;
+    customStr2?: string;
+  },
+  env?: PayFastEnv
+) {
+  const config = getPayFastConfig(env);
 
   // PayFast accepts standard fields
   const payload: Record<string, string> = {
@@ -150,14 +158,15 @@ export function createHostedCheckoutPayload(params: {
  */
 export async function verifyPayFastITN(
   itnData: Record<string, any>,
-  rawBodyString?: string
+  rawBodyString?: string,
+  env?: PayFastEnv
 ): Promise<{
   isValid: boolean;
   signatureMatches: boolean;
   serverConfirmed: boolean;
   error?: string;
 }> {
-  const config = getPayFastConfig();
+  const config = getPayFastConfig(env);
 
   const receivedSignature = itnData.signature;
   if (!receivedSignature) {
@@ -196,7 +205,6 @@ export async function verifyPayFastITN(
   // Step 3: Server-to-server query validate to PayFast
   let serverConfirmed = false;
   try {
-    // Construct param string for query validate
     let paramString = rawBodyString;
     if (!paramString) {
       const parts: string[] = [];
@@ -225,14 +233,12 @@ export async function verifyPayFastITN(
       serverConfirmed = true;
     } else {
       console.warn(`PayFast validate query responded: ${responseText}`);
-      // In sandbox mode or local proxy testing, note if validation is rejected
       if (config.isSandbox && responseText !== 'VALID') {
         console.warn('Sandbox validation warning:', responseText);
       }
     }
   } catch (err: any) {
     console.error('Error during PayFast server-to-server validate query:', err);
-    // If running in development sandbox and external network is constrained, log but don't crash
   }
 
   return {

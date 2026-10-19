@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "tsx server.ts",
+    "deploy": "npm run build && wrangler deploy",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "npm run build && wrangler deploy",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
@@ -24,6 +27,7 @@
     "motion": "^12.23.24"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
@@ -33,6 +37,7 @@
     "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.151.1"
   }
 }

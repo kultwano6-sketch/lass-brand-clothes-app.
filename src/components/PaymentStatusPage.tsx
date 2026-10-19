@@ -41,7 +41,19 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [simulatingItn, setSimulatingItn] = useState(false);
+  const [isSandboxEnv, setIsSandboxEnv] = useState(false);
   const hasClearedCartRef = useRef(false);
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.environment === 'sandbox') {
+          setIsSandboxEnv(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchOrderStatus = async () => {
     try {
@@ -253,24 +265,26 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
             </div>
           </div>
 
-          {/* Sandbox ITN Helper Button (Visible for testing sandbox orders) */}
-          <div className="pt-2 flex flex-col items-center gap-2">
-            <button
-              onClick={handleSimulateSandboxItn}
-              disabled={simulatingItn}
-              className="text-xs text-orange-400 hover:text-orange-300 underline font-semibold flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>
-                {simulatingItn
-                  ? 'Processing signed sandbox ITN...'
-                  : 'Fast-Track Sandbox ITN Callback (Test Mode)'}
-              </span>
-            </button>
-            <p className="text-[10px] text-zinc-500">
-              Emulates the official PayFast server-to-server webhook callback for test verification.
-            </p>
-          </div>
+          {/* Sandbox ITN Helper Button (Only visible in sandbox mode, strictly hidden in production) */}
+          {isSandboxEnv && (
+            <div className="pt-2 flex flex-col items-center gap-2">
+              <button
+                onClick={handleSimulateSandboxItn}
+                disabled={simulatingItn}
+                className="text-xs text-orange-400 hover:text-orange-300 underline font-semibold flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {simulatingItn
+                    ? 'Processing signed sandbox ITN...'
+                    : 'Fast-Track Sandbox ITN Callback (Test Mode)'}
+                </span>
+              </button>
+              <p className="text-[10px] text-zinc-500">
+                Emulates the official PayFast server-to-server webhook callback for test verification.
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-zinc-800">
             <button

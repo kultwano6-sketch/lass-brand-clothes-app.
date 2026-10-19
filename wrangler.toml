@@ -1,0 +1,29 @@
+name = "lass-brand-clothes"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Workers Static Assets (Vite React SPA)
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Persistent KV Storage for Orders (Free Plan)
+# Create with: npx wrangler kv namespace create ORDERS_KV
+[[kv_namespaces]]
+binding = "ORDERS_KV"
+id = "lass_orders_kv_id"
+
+# Public Non-Secret Environment Variables
+[vars]
+# In production set to "false" to connect to live PayFast (https://www.payfast.co.za)
+PAYFAST_SANDBOX = "true"
+# Security requirement: simulation strictly disabled by default
+ALLOW_SANDBOX_SIMULATION = "false"
+APP_URL = "https://lass-brand-clothes.workers.dev"
+
+# SECRETS (Do NOT put in this file, use wrangler secret put):
+# - PAYFAST_MERCHANT_ID
+# - PAYFAST_MERCHANT_KEY
+# - PAYFAST_PASSPHRASE
