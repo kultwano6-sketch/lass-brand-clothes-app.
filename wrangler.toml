@@ -13,7 +13,7 @@ not_found_handling = "single-page-application"
 # Create with: npx wrangler kv namespace create ORDERS_KV
 [[kv_namespaces]]
 binding = "ORDERS_KV"
-id = "lass_orders_kv_id"
+id = "b874fd0a49a849fb94922f46080e1509"
 
 # Public Non-Secret Environment Variables
 [vars]
