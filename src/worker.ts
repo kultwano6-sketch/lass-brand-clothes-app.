@@ -64,12 +64,16 @@ export default {
     // 1. GET /api/health
     if (pathname === '/api/health' && method === 'GET') {
       const config = getPayFastConfig(effectiveEnv);
+      const passphraseConfigured = Boolean(
+        env.PAYFAST_PASSPHRASE &&
+        (typeof env.PAYFAST_PASSPHRASE === 'string' ? env.PAYFAST_PASSPHRASE.trim().length > 0 : Boolean(env.PAYFAST_PASSPHRASE))
+      );
       return jsonResponse({
         status: 'ok',
         platform: 'Cloudflare Workers',
         environment: config.isSandbox ? 'sandbox' : 'production',
         merchantIdConfigured: Boolean(config.merchantId),
-        passphraseConfigured: Boolean(config.passphrase),
+        passphraseConfigured,
         kvStorageActive: Boolean(effectiveEnv.ORDERS_KV),
       });
     }
