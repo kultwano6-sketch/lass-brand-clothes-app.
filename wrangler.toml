@@ -1,4 +1,4 @@
-name = "lass-brand-clothes"
+name = "lass-brand-clothes-app"
 main = "src/worker.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
@@ -10,7 +10,6 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 
 # Persistent KV Storage for Orders (Free Plan)
-# Create with: npx wrangler kv namespace create ORDERS_KV
 [[kv_namespaces]]
 binding = "ORDERS_KV"
 id = "b874fd0a49a849fb94922f46080e1509"
@@ -21,9 +20,9 @@ id = "b874fd0a49a849fb94922f46080e1509"
 PAYFAST_SANDBOX = "true"
 # Security requirement: simulation strictly disabled by default
 ALLOW_SANDBOX_SIMULATION = "false"
-APP_URL = "https://lass-brand-clothes.workers.dev"
+APP_URL = "https://lass-brand-clothes-app.harvestkelass.workers.dev"
 
-# SECRETS (Do NOT put in this file, use wrangler secret put):
-# - PAYFAST_MERCHANT_ID
-# - PAYFAST_MERCHANT_KEY
-# - PAYFAST_PASSPHRASE
+# Required Secrets declared for Cloudflare sync validation
+# Values are stored encrypted in Cloudflare Worker Secrets (never committed to Git)
+[secrets]
+required = ["PAYFAST_PASSPHRASE"]

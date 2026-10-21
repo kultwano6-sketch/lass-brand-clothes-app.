@@ -70,7 +70,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
       const cleanRef = searchInput.trim().replace(/^#/, '');
       const res = await fetch(`/api/payfast/order-status/${encodeURIComponent(cleanRef)}`);
       if (res.ok) {
-        const data = await res.json();
+        const data: any = await res.json();
         if (data.success) {
           setCurrentOrder(data as SubmittedOrder);
           return;

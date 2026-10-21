@@ -54,18 +54,23 @@ export default {
       });
     }
 
-    const orderStore = getOrderStore(env);
+    const effectiveEnv: Env = {
+      ...env,
+      APP_URL: env.APP_URL || url.origin,
+    };
+
+    const orderStore = getOrderStore(effectiveEnv);
 
     // 1. GET /api/health
     if (pathname === '/api/health' && method === 'GET') {
-      const config = getPayFastConfig(env);
+      const config = getPayFastConfig(effectiveEnv);
       return jsonResponse({
         status: 'ok',
         platform: 'Cloudflare Workers',
         environment: config.isSandbox ? 'sandbox' : 'production',
         merchantIdConfigured: Boolean(config.merchantId),
         passphraseConfigured: Boolean(config.passphrase),
-        kvStorageActive: Boolean(env.ORDERS_KV),
+        kvStorageActive: Boolean(effectiveEnv.ORDERS_KV),
       });
     }
 
@@ -206,7 +211,7 @@ export default {
             customStr1: deliveryMethod,
             customStr2: pepStoreBranch || deliveryAddress,
           },
-          env
+          effectiveEnv
         );
 
         return jsonResponse({
@@ -250,7 +255,7 @@ export default {
           return textResponse('Order not found', 400);
         }
 
-        const verification = await verifyPayFastITN(itnData, rawBody, env);
+        const verification = await verifyPayFastITN(itnData, rawBody, effectiveEnv);
         if (!verification.isValid) {
           return textResponse('Signature mismatch', 400);
         }
@@ -326,8 +331,8 @@ export default {
     // 7. POST /api/payfast/simulate-sandbox-itn
     // Strictly disabled in production
     if (pathname === '/api/payfast/simulate-sandbox-itn' && method === 'POST') {
-      const config = getPayFastConfig(env);
-      if (!config.isSandbox || env.ALLOW_SANDBOX_SIMULATION !== 'true') {
+      const config = getPayFastConfig(effectiveEnv);
+      if (!config.isSandbox || effectiveEnv.ALLOW_SANDBOX_SIMULATION !== 'true') {
         return jsonResponse(
           {
             success: false,

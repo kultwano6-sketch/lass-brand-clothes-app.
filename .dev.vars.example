@@ -1,0 +1,4 @@
+# Local development secrets for `wrangler dev` only.
+# In Cloudflare production, set secrets via Cloudflare Dashboard or `wrangler secret put`.
+# Never commit real credentials to GitHub.
+PAYFAST_PASSPHRASE="your_passphrase_here"

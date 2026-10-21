@@ -174,7 +174,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       // Fetch live server orders from persistent store
       fetch('/api/orders')
         .then((res) => res.json())
-        .then((data) => {
+        .then((data: any) => {
           if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
             setSavedOrders(data.orders);
             try {

@@ -12,6 +12,8 @@
     "worker:dev": "wrangler dev",
     "worker:deploy": "npm run build && wrangler deploy",
     "clean": "rm -rf dist server.js",
+    "test": "bun test-payfast-worker.mjs",
+    "test:worker": "bun test-payfast-worker.mjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

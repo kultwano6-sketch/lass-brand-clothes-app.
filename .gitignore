@@ -10,4 +10,6 @@ coverage/
 /data/
 !/src/data/
 tmp/
+.dev.vars*
+!.dev.vars.example
 

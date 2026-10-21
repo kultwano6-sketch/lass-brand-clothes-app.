@@ -91,16 +91,15 @@ npx wrangler deploy
 To ensure your live PayFast credentials are secure and never committed to GitHub or exposed in frontend code:
 
 1. In Cloudflare Dashboard, tap **Workers & Pages**.
-2. Tap your worker: `lass-brand-clothes`.
+2. Tap your worker: `lass-brand-clothes-app`.
 3. Tap the **Settings** tab.
 4. Scroll to **Variables and Secrets**.
 5. Tap **Add** under **Secrets**:
-   - Name: `PAYFAST_MERCHANT_ID` ➔ Value: `10056107` (Encrypt/Save)
-   - Name: `PAYFAST_MERCHANT_KEY` ➔ Value: `83lc36ab316ei` (Encrypt/Save)
-   - Name: `PAYFAST_PASSPHRASE` ➔ Value: `HARVEST KE LASS` (Encrypt/Save)
+   - Name: `PAYFAST_PASSPHRASE` ➔ Encrypted secret (declared in `wrangler.toml` under `[secrets] required = ["PAYFAST_PASSPHRASE"]`)
+   - (When switching from sandbox to live): `PAYFAST_MERCHANT_ID` and `PAYFAST_MERCHANT_KEY`
 6. Under **Environment Variables** (plain text):
-   - Name: `PAYFAST_SANDBOX` ➔ Value: `false` (for live PayFast) or `true` (for sandbox test)
-   - Name: `APP_URL` ➔ Value: `https://<YOUR_WORKER_SUBDOMAIN>.workers.dev`
+   - Name: `PAYFAST_SANDBOX` ➔ Value: `true` (for testing) or `false` (for live PayFast)
+   - Name: `APP_URL` ➔ Value: `https://lass-brand-clothes-app.harvestkelass.workers.dev`
    - Name: `ALLOW_SANDBOX_SIMULATION` ➔ Value: `false`
 7. Tap **Deploy** / **Save**.
 
@@ -111,7 +110,7 @@ To ensure your live PayFast credentials are secure and never committed to GitHub
 1. Still in your Worker's **Settings** tab, scroll to **Bindings**.
 2. Tap **Add binding** ➔ Select **KV Namespace**.
 3. **Variable name**: Enter `ORDERS_KV` (must match exactly).
-4. **KV namespace**: Select the `ORDERS_KV` namespace you created in Step 2.
+4. **KV namespace**: Select the `ORDERS_KV` namespace (ID: `b874fd0a49a849fb94922f46080e1509`).
 5. Tap **Save and deploy**.
 
 ---
@@ -123,7 +122,7 @@ To ensure your live PayFast credentials are secure and never committed to GitHub
 3. Under **Security Passphrase**, ensure your passphrase matches:
    `HARVEST KE LASS`
 4. Set the **Notify URL** to:
-   `https://<YOUR_WORKER_SUBDOMAIN>.workers.dev/api/payfast/notify`
+   `https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify`
 5. Save changes.
 
 ---

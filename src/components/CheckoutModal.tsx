@@ -142,7 +142,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }),
       });
 
-      const data = await res.json();
+      const data: any = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to initiate PayFast checkout session.');
       }

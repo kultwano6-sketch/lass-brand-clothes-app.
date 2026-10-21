@@ -47,7 +47,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
   useEffect(() => {
     fetch('/api/health')
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         if (data && data.environment === 'sandbox') {
           setIsSandboxEnv(true);
         }
@@ -70,7 +70,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
         return;
       }
 
-      const data = await res.json();
+      const data: any = await res.json();
       if (data.success) {
         setOrder(data);
         setErrorMsg('');
@@ -129,7 +129,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderNumber: orderId }),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       if (data.success) {
         fetchOrderStatus();
       }
