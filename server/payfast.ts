@@ -23,41 +23,38 @@ export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
   const e: PayFastEnv = env || (typeof process !== 'undefined' ? (process.env as PayFastEnv) : {}) || {};
   const isSandbox = e.PAYFAST_SANDBOX !== 'false';
 
-  const customMerchantId = (e.PAYFAST_MERCHANT_ID || '').trim();
-  const customMerchantKey = (e.PAYFAST_MERCHANT_KEY || '').trim();
-  const configuredPassphrase = (e.PAYFAST_PASSPHRASE || '').trim();
+  const rawMerchantId = e.PAYFAST_MERCHANT_ID !== undefined && e.PAYFAST_MERCHANT_ID !== null
+    ? String(e.PAYFAST_MERCHANT_ID).trim()
+    : '';
+  const rawMerchantKey = e.PAYFAST_MERCHANT_KEY !== undefined && e.PAYFAST_MERCHANT_KEY !== null
+    ? String(e.PAYFAST_MERCHANT_KEY).trim()
+    : '';
+  const rawPassphrase = e.PAYFAST_PASSPHRASE !== undefined && e.PAYFAST_PASSPHRASE !== null
+    ? String(e.PAYFAST_PASSPHRASE).trim()
+    : '';
 
-  // Distinguish between a custom merchant account (e.g. registered on sandbox.payfast.co.za or live)
-  // versus PayFast's official shared sandbox test account
-  const isCustomMerchant = Boolean(
-    customMerchantId &&
-    customMerchantId !== '10004002' &&
-    customMerchantId !== '10000100'
-  );
-
+  // Determine merchant credentials:
+  // If the user configured PAYFAST_MERCHANT_ID, ALWAYS use the user's configured credentials and passphrase directly!
+  // NEVER silently override or substitute shared sandbox defaults when user credentials are provided.
   let merchantId: string;
   let merchantKey: string;
   let passphrase: string;
 
-  if (isCustomMerchant) {
-    // Dedicated merchant credentials registered on PayFast
-    merchantId = customMerchantId;
-    merchantKey = customMerchantKey;
-    passphrase = configuredPassphrase;
+  if (rawMerchantId) {
+    // User-configured credentials (Sandbox or Live)
+    merchantId = rawMerchantId;
+    merchantKey = rawMerchantKey;
+    passphrase = rawPassphrase;
   } else if (isSandbox) {
-    // Official PayFast Sandbox default test credentials
-    // Merchant ID: 10004002, Key: q1cd2rdny4a53
-    // On PayFast Sandbox servers, account 10004002 strictly uses passphrase "payfast"
+    // Fallback ONLY when PAYFAST_MERCHANT_ID is completely absent in sandbox mode
     merchantId = '10004002';
-    merchantKey = customMerchantKey || 'q1cd2rdny4a53';
-    passphrase = configuredPassphrase === 'payfast' || !configuredPassphrase
-      ? 'payfast'
-      : (customMerchantId === '10004002' ? configuredPassphrase : 'payfast');
+    merchantKey = rawMerchantKey || 'q1cd2rdny4a53';
+    passphrase = rawPassphrase || 'payfast';
   } else {
-    // Live / production mode
-    merchantId = customMerchantId;
-    merchantKey = customMerchantKey;
-    passphrase = configuredPassphrase;
+    // Live mode without merchant ID
+    merchantId = '';
+    merchantKey = rawMerchantKey;
+    passphrase = rawPassphrase;
   }
 
   const appUrl = e.APP_URL || e.PUBLIC_APP_URL || 'http://localhost:3000';
@@ -119,6 +116,8 @@ export function generatePayFastSignature(
 /**
  * Prepares the complete PayFast hosted checkout payload for an order.
  * Kept strictly server-side so merchant credentials and passphrases are NEVER leaked to client.
+ * Fields follow the exact sequence defined in PayFast's official Custom Integration specification,
+ * with no empty/blank values emitted.
  */
 export function createHostedCheckoutPayload(
   params: {
@@ -137,46 +136,63 @@ export function createHostedCheckoutPayload(
 ) {
   const config = getPayFastConfig(env);
 
-  // PayFast accepts standard fields
-  const payload: Record<string, string> = {
-    merchant_id: config.merchantId,
-    merchant_key: config.merchantKey,
-    return_url: `${config.appUrl}/payment/return?orderId=${encodeURIComponent(
-      params.orderNumber
-    )}`,
-    cancel_url: `${config.appUrl}/payment/cancel?orderId=${encodeURIComponent(
-      params.orderNumber
-    )}`,
-    notify_url: `${config.appUrl}/api/payfast/notify`,
-    name_first: params.nameFirst.trim(),
-    name_last: (params.nameLast || '').trim(),
-    email_address: params.emailAddress.trim(),
-    m_payment_id: params.orderNumber.trim(),
-    amount: params.amount.toFixed(2),
-    item_name: params.itemName.slice(0, 100),
-  };
+  // PayFast accepts standard fields in strict sequence
+  const payload: Record<string, string> = {};
+
+  // 1. Merchant Details
+  payload.merchant_id = config.merchantId;
+  payload.merchant_key = config.merchantKey;
+
+  // 2. Transaction Options / URLs
+  payload.return_url = `${config.appUrl}/payment/return?orderId=${encodeURIComponent(
+    params.orderNumber.trim()
+  )}`;
+  payload.cancel_url = `${config.appUrl}/payment/cancel?orderId=${encodeURIComponent(
+    params.orderNumber.trim()
+  )}`;
+  payload.notify_url = `${config.appUrl}/api/payfast/notify`;
+
+  // 3. Buyer Details (in exact PayFast sequence, only non-blank values)
+  const firstName = params.nameFirst.trim();
+  if (firstName) {
+    payload.name_first = firstName;
+  }
+
+  const lastName = (params.nameLast || '').trim();
+  if (lastName) {
+    payload.name_last = lastName;
+  }
+
+  const email = params.emailAddress.trim();
+  if (email) {
+    payload.email_address = email;
+  }
 
   if (params.cellNumber) {
-    // PayFast prefers normalized SA cell numbers
     const cleanCell = params.cellNumber.replace(/\D/g, '');
     if (cleanCell) {
       payload.cell_number = cleanCell;
     }
   }
 
-  if (params.itemDescription) {
-    payload.item_description = params.itemDescription.slice(0, 255);
+  // 4. Transaction Details (in exact PayFast sequence, only non-blank values)
+  payload.m_payment_id = params.orderNumber.trim();
+  payload.amount = params.amount.toFixed(2);
+  payload.item_name = params.itemName.slice(0, 100).trim();
+
+  if (params.itemDescription && params.itemDescription.trim()) {
+    payload.item_description = params.itemDescription.slice(0, 255).trim();
   }
 
-  if (params.customStr1) {
-    payload.custom_str1 = params.customStr1.slice(0, 255);
+  if (params.customStr1 && params.customStr1.trim()) {
+    payload.custom_str1 = params.customStr1.slice(0, 255).trim();
   }
 
-  if (params.customStr2) {
-    payload.custom_str2 = params.customStr2.slice(0, 255);
+  if (params.customStr2 && params.customStr2.trim()) {
+    payload.custom_str2 = params.customStr2.slice(0, 255).trim();
   }
 
-  // Generate signature
+  // 5. Signature (calculated over all non-empty fields in strict order + passphrase)
   payload.signature = generatePayFastSignature(payload, config.passphrase);
 
   return {

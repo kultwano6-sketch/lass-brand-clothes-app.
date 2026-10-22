@@ -341,7 +341,63 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`\nAll ${passed}/12 automated PayFast & Worker tests PASSED successfully!`);
+  // Test 13: User's Dedicated Sandbox credentials (zero default substitution & strict field order)
+  {
+    const mySandboxEnv = {
+      PAYFAST_SANDBOX: 'true',
+      PAYFAST_MERCHANT_ID: '10045678',
+      PAYFAST_MERCHANT_KEY: 'my_custom_sandbox_key_999',
+      PAYFAST_PASSPHRASE: 'HARVEST KE LASS',
+      APP_URL: 'https://lass-brand-clothes-app.harvestkelass.workers.dev',
+      ORDERS_KV: mockKV,
+    };
+
+    const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer: {
+          fullName: 'Kultwano M',
+          email: 'customer@example.co.za',
+          phoneOrWhatsApp: '0664412203',
+          pepStoreBranch: 'PEP Mall of Africa',
+        },
+        items: [{ productId: 'item-1', name: 'LASS Hoodie', selectedSize: 'XL', selectedColour: 'Black', unitPrice: 700, quantity: 1 }],
+      }),
+    });
+
+    const res = await worker.fetch(req, mySandboxEnv, {});
+    const data = await res.json();
+    assert.strictEqual(res.status, 200);
+
+    // 1. Verify user's own credentials are used verbatim (no silent fallback to 10004002 or q1cd2rdny4a53)
+    assert.strictEqual(data.payfastData.merchant_id, '10045678');
+    assert.strictEqual(data.payfastData.merchant_key, 'my_custom_sandbox_key_999');
+
+    // 2. Verify signature was generated with user's custom passphrase ('HARVEST KE LASS') and NOT 'payfast'
+    const expectedSigWithUserPass = generatePayFastSignature(data.payfastData, 'HARVEST KE LASS');
+    const wrongSigWithDefaultPass = generatePayFastSignature(data.payfastData, 'payfast');
+    assert.strictEqual(data.payfastData.signature, expectedSigWithUserPass);
+    assert.notStrictEqual(data.payfastData.signature, wrongSigWithDefaultPass);
+
+    // 3. Verify strict field ordering: cell_number MUST appear before m_payment_id in the keys
+    const keys = Object.keys(data.payfastData);
+    const cellIdx = keys.indexOf('cell_number');
+    const mPaymentIdx = keys.indexOf('m_payment_id');
+    const emailIdx = keys.indexOf('email_address');
+    assert.ok(cellIdx > emailIdx, 'cell_number must appear after email_address');
+    assert.ok(cellIdx < mPaymentIdx, 'cell_number must appear before m_payment_id');
+
+    // 4. Verify no empty strings exist in payfastData
+    for (const [k, v] of Object.entries(data.payfastData)) {
+      assert.ok(v !== '' && v !== null && v !== undefined, `Field ${k} must not be empty`);
+    }
+
+    console.log('✓ Test 13 Passed: Dedicated sandbox account credentials, custom passphrase, and strict field order verified without silent defaults substitution');
+    passed++;
+  }
+
+  console.log(`\nAll ${passed}/13 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {
