@@ -63,7 +63,21 @@ async function runTests() {
     // Ensure the secret itself is NEVER leaked in response
     const rawText = JSON.stringify(body);
     assert.strictEqual(rawText.includes(testPassphrase), false);
+    assert.strictEqual(res.headers.get('cache-control'), 'no-store, no-cache, must-revalidate, max-age=0');
     console.log('✓ Test 2 Passed: Health check reports passphraseConfigured: true and never leaks secret in response');
+    passed++;
+  }
+
+  // Test 2b: Health check with whitespace-only passphrase (must return false)
+  {
+    const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/health', {
+      method: 'GET',
+    });
+    const res = await worker.fetch(req, { ...baseEnv, PAYFAST_PASSPHRASE: '   ' }, {});
+    const body = await res.json();
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(body.passphraseConfigured, false, 'Whitespace-only secret must not be considered configured');
+    console.log('✓ Test 2b Passed: Whitespace-only secret is safely evaluated as false');
     passed++;
   }
 
@@ -397,7 +411,7 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`\nAll ${passed}/13 automated PayFast & Worker tests PASSED successfully!`);
+  console.log(`\nAll ${passed}/14 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {

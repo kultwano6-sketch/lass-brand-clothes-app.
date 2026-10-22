@@ -64,9 +64,10 @@ export default {
     // 1. GET or HEAD /api/health
     if (pathname === '/api/health' && (method === 'GET' || method === 'HEAD')) {
       const config = getPayFastConfig(effectiveEnv);
+      const rawSecret = env?.PAYFAST_PASSPHRASE ?? effectiveEnv?.PAYFAST_PASSPHRASE;
       const passphraseConfigured = Boolean(
-        env.PAYFAST_PASSPHRASE &&
-        (typeof env.PAYFAST_PASSPHRASE === 'string' ? env.PAYFAST_PASSPHRASE.trim().length > 0 : Boolean(env.PAYFAST_PASSPHRASE))
+        rawSecret &&
+        (typeof rawSecret === 'string' ? rawSecret.trim().length > 0 : Boolean(rawSecret))
       );
       return jsonResponse(
         {
