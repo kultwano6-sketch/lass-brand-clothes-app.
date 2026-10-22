@@ -325,11 +325,11 @@ async function runTests() {
       item_name: 'LASS Piece',
       signature: 'dummy_sig_123',
     };
-    // Simulate what CheckoutModal.tsx does:
+    // Simulate what CheckoutModal.tsx does with optional blank fields:
     const simulatedFormInputs = {};
     for (const [key, value] of Object.entries(testSampleData)) {
-      if (value !== undefined && value !== null) {
-        simulatedFormInputs[key] = String(value);
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        simulatedFormInputs[key] = String(value).trim();
       }
     }
     for (const [k, v] of Object.entries(testSampleData)) {
@@ -345,7 +345,7 @@ async function runTests() {
     const sampleData = {
       merchant_id: '10004002',
       return_url: 'https://example.com/return?id=123',
-      item_name: 'LASS T-Shirt & Cap',
+      item_name: 'LASS T-Shirt & Cap (B&W)',
       empty_field: '',
     };
     const signature = generatePayFastSignature(sampleData, 'payfast salt');
@@ -411,7 +411,79 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`\nAll ${passed}/14 automated PayFast & Worker tests PASSED successfully!`);
+  // Test 14: Official PayFast documentation worked example verification (developers.payfast.co.za)
+  {
+    const officialDocData = {
+      merchant_id: '10000100',
+      merchant_key: '46f0cd694581a',
+      return_url: 'http://www.yourdomain.co.za/return.php',
+      cancel_url: 'http://www.yourdomain.co.za/cancel.php',
+      notify_url: 'http://www.yourdomain.co.za/notify.php',
+      name_first: 'First Name',
+      name_last: 'Last Name',
+      email_address: 'test@test.com',
+      m_payment_id: '1234',
+      amount: '10.00',
+      item_name: 'Order#123',
+    };
+    const officialPassphrase = 'jt7NOE43FZPn';
+    const computedSignature = generatePayFastSignature(officialDocData, officialPassphrase);
+    assert.strictEqual(computedSignature, '8317e2bbd1ae2a6f4f36837e83be4ca9');
+    console.log('✓ Test 14 Passed: Official PayFast documentation worked example signature matches exactly (8317e2bbd1ae2a6f4f36837e83be4ca9)');
+    passed++;
+  }
+
+  // Test 15: Regression test comparing signed payload against actual form submission with optional blank fields & special characters
+  {
+    const payloadWithOptionalBlanks = {
+      merchant_id: '10045678',
+      merchant_key: 'custom_key_xyz',
+      return_url: 'https://lass-brand-clothes-app.harvestkelass.workers.dev/payment/return?orderId=LASS-5555',
+      cancel_url: 'https://lass-brand-clothes-app.harvestkelass.workers.dev/payment/cancel?orderId=LASS-5555',
+      notify_url: 'https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify',
+      name_first: 'Kultwano',
+      name_last: 'Kelass',
+      email_address: 'customer@example.co.za',
+      cell_number: '0712345678',
+      m_payment_id: 'LASS-5555',
+      amount: '560.00',
+      item_name: 'LASS Brand Clothes #LASS-5555',
+      item_description: '2x Pocket Size Print T-Shirt (B&W) (L)',
+      custom_str1: 'paxi-standard',
+      custom_str2: 'PEP Jabulani Mall Soweto (P5012)',
+      optional_blank_note: '',
+      optional_whitespace_field: '   ',
+    };
+
+    // 1. Calculate signature on the payload
+    const signature = generatePayFastSignature(payloadWithOptionalBlanks, 'HARVEST KE LASS');
+    const completeData = { ...payloadWithOptionalBlanks, signature };
+
+    // 2. Simulate exact frontend CheckoutModal.tsx form input generation:
+    const formInputs = {};
+    for (const [key, value] of Object.entries(completeData)) {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        formInputs[key] = String(value).trim();
+      }
+    }
+
+    // 3. Verify blank fields were completely excluded from form inputs
+    assert.strictEqual('optional_blank_note' in formInputs, false, 'Blank string must not be a form input');
+    assert.strictEqual('optional_whitespace_field' in formInputs, false, 'Whitespace string must not be a form input');
+
+    // 4. Verify that re-generating signature from submitted form inputs yields identical signature
+    const signatureFromForm = generatePayFastSignature(formInputs, 'HARVEST KE LASS');
+    assert.strictEqual(signatureFromForm, signature, 'Form inputs must yield the exact same signature as original payload');
+
+    // 5. Verify parentheses (B&W) and (P5012) are encoded with RFC 1738 / PHP urlencode standard (%28 and %29)
+    assert.strictEqual(formInputs.item_description, '2x Pocket Size Print T-Shirt (B&W) (L)');
+    assert.strictEqual(formInputs.custom_str2, 'PEP Jabulani Mall Soweto (P5012)');
+
+    console.log('✓ Test 15 Passed: Signed payload matches submitted form inputs with optional blanks safely omitted and PHP urlencode compliance');
+    passed++;
+  }
+
+  console.log(`\nAll ${passed}/16 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {

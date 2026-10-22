@@ -162,11 +162,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       form.style.display = 'none';
 
       for (const [key, value] of Object.entries(data.payfastData)) {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
           const input = document.createElement('input');
           input.type = 'hidden';
           input.name = key;
-          input.value = String(value);
+          input.value = String(value).trim();
           form.appendChild(input);
         }
       }

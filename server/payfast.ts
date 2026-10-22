@@ -75,12 +75,76 @@ export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
 }
 
 /**
+ * Official PayFast Custom Integration attribute sequence according to
+ * PayFast developer documentation ("Step 1: Create your checkout form"):
+ * https://developers.payfast.co.za/docs#step_1_form_fields
+ *
+ * NOTE: The PayFast custom payment signature requires this exact field sequence
+ * and MUST NOT be confused with the API's alphabetical signature!
+ */
+export const PAYFAST_DOCUMENTED_ORDER: readonly string[] = [
+  // 1. Merchant details
+  'merchant_id',
+  'merchant_key',
+  'return_url',
+  'cancel_url',
+  'notify_url',
+  'fica_idnumber',
+  // 2. Customer details (Buyer details)
+  'name_first',
+  'name_last',
+  'email_address',
+  'cell_number',
+  // 3. Transaction details
+  'm_payment_id',
+  'amount',
+  'item_name',
+  'item_description',
+  'custom_int1',
+  'custom_int2',
+  'custom_int3',
+  'custom_int4',
+  'custom_int5',
+  'custom_str1',
+  'custom_str2',
+  'custom_str3',
+  'custom_str4',
+  'custom_str5',
+  // 4. Transaction options
+  'email_confirmation',
+  'confirmation_address',
+  // 5. Payment methods
+  'payment_method',
+  // 6. Subscriptions / recurring billing
+  'subscription_type',
+  'billing_date',
+  'recurring_amount',
+  'frequency',
+  'cycles',
+] as const;
+
+/**
+ * Standard RFC 1738 application/x-www-form-urlencoded matching PHP's urlencode()
+ * which PayFast's backend uses to calculate and verify signatures:
+ * - Spaces encoded as '+'
+ * - Uppercase hex (%2F, %3A, %28, %29, %21, %27, %2A, %7E, etc.)
+ * - Characters left unencoded by standard JS encodeURIComponent (! ' ( ) * ~) are properly percent-encoded
+ */
+export function payfastUrlEncode(str: string): string {
+  return encodeURIComponent(str)
+    .replace(/%20/g, '+')
+    .replace(/[!'()*~]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replace(/%[0-9a-f]{2}/gi, (match) => match.toUpperCase());
+}
+
+/**
  * Generates PayFast MD5 signature adhering strictly to official PayFast documentation:
- * 1. Collect all non-empty parameters (excluding 'signature').
- * 2. URL-encode values with uppercase percent-encoding and spaces encoded as '+' (RFC 1738 / application/x-www-form-urlencoded).
- * 3. Concatenate key=value pairs with '&'.
- * 4. Append '&passphrase=' if passphrase is set.
- * 5. Compute MD5 hash in lowercase.
+ * 1. Filter out empty/blank fields and 'signature'.
+ * 2. Order variables in the documented payment-field sequence.
+ * 3. URL-encode values using uppercase percent-encoding and '+' for spaces (matching PHP urlencode).
+ * 4. Concatenate key=value pairs with '&'.
+ * 5. Append '&passphrase=' with encoded passphrase if provided.
+ * 6. Compute MD5 hash in lowercase hex.
  */
 export function generatePayFastSignature(
   data: Record<string, any>,
@@ -88,14 +152,26 @@ export function generatePayFastSignature(
 ): string {
   let pfOutput = '';
 
+  // Order fields strictly according to PayFast's official attributes description
+  const orderedKeys: string[] = [];
+  for (const key of PAYFAST_DOCUMENTED_ORDER) {
+    if (key in data && key !== 'signature') {
+      orderedKeys.push(key);
+    }
+  }
+
+  // Append any other fields present in data (excluding signature) that were not in standard list (e.g. ITN fields)
   for (const key of Object.keys(data)) {
-    if (key === 'signature') continue;
+    if (key !== 'signature' && !orderedKeys.includes(key)) {
+      orderedKeys.push(key);
+    }
+  }
+
+  for (const key of orderedKeys) {
     const val = data[key];
-    if (val !== undefined && val !== null && val !== '') {
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
       const stringVal = String(val).trim();
-      const encodedVal = encodeURIComponent(stringVal)
-        .replace(/%[0-9a-f]{2}/gi, (match) => match.toUpperCase())
-        .replace(/%20/g, '+');
+      const encodedVal = payfastUrlEncode(stringVal);
       pfOutput += `${key}=${encodedVal}&`;
     }
   }
@@ -104,9 +180,7 @@ export function generatePayFastSignature(
   let paramString = pfOutput.slice(0, -1);
 
   if (passphrase && passphrase.trim()) {
-    const encodedPass = encodeURIComponent(passphrase.trim())
-      .replace(/%[0-9a-f]{2}/gi, (match) => match.toUpperCase())
-      .replace(/%20/g, '+');
+    const encodedPass = payfastUrlEncode(passphrase.trim());
     paramString += `&passphrase=${encodedPass}`;
   }
 
