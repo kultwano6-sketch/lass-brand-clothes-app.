@@ -22,9 +22,44 @@ export interface PayFastConfig {
 export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
   const e: PayFastEnv = env || (typeof process !== 'undefined' ? (process.env as PayFastEnv) : {}) || {};
   const isSandbox = e.PAYFAST_SANDBOX !== 'false';
-  const merchantId = e.PAYFAST_MERCHANT_ID || (isSandbox ? '10000100' : '');
-  const merchantKey = e.PAYFAST_MERCHANT_KEY || (isSandbox ? '46f0cd694581a' : '');
-  const passphrase = e.PAYFAST_PASSPHRASE || '';
+
+  const customMerchantId = (e.PAYFAST_MERCHANT_ID || '').trim();
+  const customMerchantKey = (e.PAYFAST_MERCHANT_KEY || '').trim();
+  const configuredPassphrase = (e.PAYFAST_PASSPHRASE || '').trim();
+
+  // Distinguish between a custom merchant account (e.g. registered on sandbox.payfast.co.za or live)
+  // versus PayFast's official shared sandbox test account
+  const isCustomMerchant = Boolean(
+    customMerchantId &&
+    customMerchantId !== '10004002' &&
+    customMerchantId !== '10000100'
+  );
+
+  let merchantId: string;
+  let merchantKey: string;
+  let passphrase: string;
+
+  if (isCustomMerchant) {
+    // Dedicated merchant credentials registered on PayFast
+    merchantId = customMerchantId;
+    merchantKey = customMerchantKey;
+    passphrase = configuredPassphrase;
+  } else if (isSandbox) {
+    // Official PayFast Sandbox default test credentials
+    // Merchant ID: 10004002, Key: q1cd2rdny4a53
+    // On PayFast Sandbox servers, account 10004002 strictly uses passphrase "payfast"
+    merchantId = '10004002';
+    merchantKey = customMerchantKey || 'q1cd2rdny4a53';
+    passphrase = configuredPassphrase === 'payfast' || !configuredPassphrase
+      ? 'payfast'
+      : (customMerchantId === '10004002' ? configuredPassphrase : 'payfast');
+  } else {
+    // Live / production mode
+    merchantId = customMerchantId;
+    merchantKey = customMerchantKey;
+    passphrase = configuredPassphrase;
+  }
+
   const appUrl = e.APP_URL || e.PUBLIC_APP_URL || 'http://localhost:3000';
 
   const baseUrl = isSandbox
@@ -45,7 +80,7 @@ export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
 /**
  * Generates PayFast MD5 signature adhering strictly to official PayFast documentation:
  * 1. Collect all non-empty parameters (excluding 'signature').
- * 2. URL-encode values with spaces encoded as '+' (RFC 1738 / application/x-www-form-urlencoded).
+ * 2. URL-encode values with uppercase percent-encoding and spaces encoded as '+' (RFC 1738 / application/x-www-form-urlencoded).
  * 3. Concatenate key=value pairs with '&'.
  * 4. Append '&passphrase=' if passphrase is set.
  * 5. Compute MD5 hash in lowercase.
@@ -61,7 +96,9 @@ export function generatePayFastSignature(
     const val = data[key];
     if (val !== undefined && val !== null && val !== '') {
       const stringVal = String(val).trim();
-      const encodedVal = encodeURIComponent(stringVal).replace(/%20/g, '+');
+      const encodedVal = encodeURIComponent(stringVal)
+        .replace(/%[0-9a-f]{2}/gi, (match) => match.toUpperCase())
+        .replace(/%20/g, '+');
       pfOutput += `${key}=${encodedVal}&`;
     }
   }
@@ -70,10 +107,9 @@ export function generatePayFastSignature(
   let paramString = pfOutput.slice(0, -1);
 
   if (passphrase && passphrase.trim()) {
-    const encodedPass = encodeURIComponent(passphrase.trim()).replace(
-      /%20/g,
-      '+'
-    );
+    const encodedPass = encodeURIComponent(passphrase.trim())
+      .replace(/%[0-9a-f]{2}/gi, (match) => match.toUpperCase())
+      .replace(/%20/g, '+');
     paramString += `&passphrase=${encodedPass}`;
   }
 

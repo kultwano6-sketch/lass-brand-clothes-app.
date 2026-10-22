@@ -86,22 +86,31 @@ npx wrangler deploy
 
 ---
 
-### Step 4: Add PayFast Secrets to your Cloudflare Worker
+### Step 4: Add PayFast Credentials to your Cloudflare Worker
 
-To ensure your live PayFast credentials are secure and never committed to GitHub or exposed in frontend code:
+PayFast supports two testing options in Sandbox mode, followed by live production mode:
 
-1. In Cloudflare Dashboard, tap **Workers & Pages**.
-2. Tap your worker: `lass-brand-clothes-app`.
-3. Tap the **Settings** tab.
-4. Scroll to **Variables and Secrets**.
-5. Tap **Add** under **Secrets**:
-   - Name: `PAYFAST_PASSPHRASE` ➔ Encrypted secret (declared in `wrangler.toml` under `[secrets] required = ["PAYFAST_PASSPHRASE"]`)
-   - (When switching from sandbox to live): `PAYFAST_MERCHANT_ID` and `PAYFAST_MERCHANT_KEY`
-6. Under **Environment Variables** (plain text):
-   - Name: `PAYFAST_SANDBOX` ➔ Value: `true` (for testing) or `false` (for live PayFast)
-   - Name: `APP_URL` ➔ Value: `https://lass-brand-clothes-app.harvestkelass.workers.dev`
-   - Name: `ALLOW_SANDBOX_SIMULATION` ➔ Value: `false`
-7. Tap **Deploy** / **Save**.
+#### Option A: Default Sandbox Testing (Fastest & Zero Setup)
+- **`PAYFAST_SANDBOX`** = `"true"` (already in `wrangler.toml`)
+- The app automatically uses PayFast's official public test account (`10004002` / `q1cd2rdny4a53` / `payfast`).
+- You do NOT need to create a PayFast account to test hosted card and EFT checkout.
+
+#### Option B: Dedicated Sandbox Account (from sandbox.payfast.co.za)
+If you created your own account at [sandbox.payfast.co.za](https://sandbox.payfast.co.za) with a custom passphrase (e.g. `HARVEST KE LASS`), you **MUST** provide all three matching credentials in Cloudflare:
+1. In Cloudflare Dashboard ➔ **Workers & Pages** ➔ `lass-brand-clothes-app` ➔ **Settings** ➔ **Variables and Secrets**:
+   - **`PAYFAST_MERCHANT_ID`** (Plain text or Secret): Your custom Sandbox Merchant ID from your sandbox dashboard.
+   - **`PAYFAST_MERCHANT_KEY`** (Plain text or Secret): Your custom Sandbox Merchant Key.
+   - **`PAYFAST_PASSPHRASE`** (Secret): Your matching custom Security Passphrase (e.g. `HARVEST KE LASS`).
+2. If `PAYFAST_MERCHANT_ID` is omitted, the app safely defaults to PayFast's official shared test credentials (`10004002` / `payfast`) so checkout will never fail with a signature error.
+
+#### Option C: Live Production Mode
+When ready to accept real payments from South African customers:
+1. Set **`PAYFAST_SANDBOX`** = `"false"` in `wrangler.toml` or Cloudflare Dashboard.
+2. In Cloudflare Dashboard ➔ **Variables and Secrets**:
+   - **`PAYFAST_MERCHANT_ID`**: Your live Merchant ID from [payfast.io](https://www.payfast.io).
+   - **`PAYFAST_MERCHANT_KEY`**: Your live Merchant Key.
+   - **`PAYFAST_PASSPHRASE`** (Encrypted Secret): Your live passphrase set under Settings ➔ Integration.
+3. Tap **Deploy / Save**.
 
 ---
 
@@ -115,12 +124,11 @@ To ensure your live PayFast credentials are secure and never committed to GitHub
 
 ---
 
-### Step 6: Configure your PayFast Merchant Dashboard
+### Step 6: Configure your PayFast Merchant Dashboard (When using a dedicated account)
 
-1. Log in to [payfast.io](https://www.payfast.io) or [sandbox.payfast.co.za](https://sandbox.payfast.co.za).
+1. Log in to [payfast.io](https://www.payfast.io) (live) or [sandbox.payfast.co.za](https://sandbox.payfast.co.za) (sandbox).
 2. Go to **Settings** ➔ **Integration**.
-3. Under **Security Passphrase**, ensure your passphrase matches:
-   `HARVEST KE LASS`
+3. Under **Security Passphrase**, set your passphrase (must match `PAYFAST_PASSPHRASE` in Cloudflare).
 4. Set the **Notify URL** to:
    `https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify`
 5. Save changes.

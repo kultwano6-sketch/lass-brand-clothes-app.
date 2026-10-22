@@ -61,21 +61,30 @@ export default {
 
     const orderStore = getOrderStore(effectiveEnv);
 
-    // 1. GET /api/health
-    if (pathname === '/api/health' && method === 'GET') {
+    // 1. GET or HEAD /api/health
+    if (pathname === '/api/health' && (method === 'GET' || method === 'HEAD')) {
       const config = getPayFastConfig(effectiveEnv);
       const passphraseConfigured = Boolean(
         env.PAYFAST_PASSPHRASE &&
         (typeof env.PAYFAST_PASSPHRASE === 'string' ? env.PAYFAST_PASSPHRASE.trim().length > 0 : Boolean(env.PAYFAST_PASSPHRASE))
       );
-      return jsonResponse({
-        status: 'ok',
-        platform: 'Cloudflare Workers',
-        environment: config.isSandbox ? 'sandbox' : 'production',
-        merchantIdConfigured: Boolean(config.merchantId),
-        passphraseConfigured,
-        kvStorageActive: Boolean(effectiveEnv.ORDERS_KV),
-      });
+      return jsonResponse(
+        {
+          status: 'ok',
+          platform: 'Cloudflare Workers',
+          environment: config.isSandbox ? 'sandbox' : 'production',
+          merchantIdConfigured: Boolean(config.merchantId),
+          passphraseConfigured,
+          kvStorageActive: Boolean(effectiveEnv.ORDERS_KV),
+          timestamp: new Date().toISOString(),
+        },
+        200,
+        {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      );
     }
 
     // 2. POST /api/payfast/create-checkout
