@@ -290,6 +290,10 @@ export async function verifyPayFastITN(
   isValid: boolean;
   signatureMatches: boolean;
   serverConfirmed: boolean;
+  timing: {
+    sigMs: number;
+    validateMs: number;
+  };
   error?: string;
 }> {
   const config = getPayFastConfig(env);
@@ -300,20 +304,24 @@ export async function verifyPayFastITN(
       isValid: false,
       signatureMatches: false,
       serverConfirmed: false,
+      timing: { sigMs: 0, validateMs: 0 },
       error: 'Missing signature in ITN payload',
     };
   }
 
   // Step 1: Re-compute signature
+  const startSig = performance.now();
   const expectedSignature = generatePayFastSignature(itnData, config.passphrase);
   const signatureMatches =
     expectedSignature.toLowerCase() === String(receivedSignature).toLowerCase();
+  const sigMs = performance.now() - startSig;
 
   if (!signatureMatches) {
     return {
       isValid: false,
       signatureMatches: false,
       serverConfirmed: false,
+      timing: { sigMs, validateMs: 0 },
       error: `Signature mismatch. Expected: ${expectedSignature}, Received: ${receivedSignature}`,
     };
   }
@@ -324,11 +332,13 @@ export async function verifyPayFastITN(
       isValid: false,
       signatureMatches: true,
       serverConfirmed: false,
+      timing: { sigMs, validateMs: 0 },
       error: `Merchant ID mismatch. Expected: ${config.merchantId}, Received: ${itnData.merchant_id}`,
     };
   }
 
   // Step 3: Server-to-server query validate to PayFast
+  const startValidate = performance.now();
   let serverConfirmed = false;
   try {
     let paramString = rawBodyString;
@@ -345,6 +355,10 @@ export async function verifyPayFastITN(
       paramString = parts.join('&');
     }
 
+    // Safety timeout: 6 seconds ensures server validate never hangs worker execution
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
     const response = await fetch(config.validateUrl, {
       method: 'POST',
       headers: {
@@ -352,24 +366,28 @@ export async function verifyPayFastITN(
         'User-Agent': 'LASS-Brand-Store-PayFast-Client/1.0',
       },
       body: paramString,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const responseText = (await response.text()).trim();
     if (responseText === 'VALID') {
       serverConfirmed = true;
     } else {
-      console.warn(`PayFast validate query responded: ${responseText}`);
+      console.warn(`[PayFast Validate] Response: ${responseText}`);
       if (config.isSandbox && responseText !== 'VALID') {
         console.warn('Sandbox validation warning:', responseText);
       }
     }
   } catch (err: any) {
-    console.error('Error during PayFast server-to-server validate query:', err);
+    console.warn(`[PayFast Validate] Server query notice: ${err?.name === 'AbortError' ? 'timed out after 6s' : err?.message}`);
   }
+  const validateMs = performance.now() - startValidate;
 
   return {
     isValid: signatureMatches,
     signatureMatches,
     serverConfirmed,
+    timing: { sigMs, validateMs },
   };
 }

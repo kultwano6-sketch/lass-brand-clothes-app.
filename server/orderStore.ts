@@ -177,6 +177,12 @@ export class CloudflareKvOrderStore implements IOrderStore {
     );
   }
 
+  public async updateOrder(order: SubmittedOrder): Promise<SubmittedOrder> {
+    const key = `order:${order.orderNumber}`;
+    await this.kv.put(key, JSON.stringify(order));
+    return order;
+  }
+
   public async recordPaymentResult(
     orderNumber: string,
     result: PaymentRecordResult
@@ -202,7 +208,7 @@ export class CloudflareKvOrderStore implements IOrderStore {
 
     // Idempotency check: If already paid, do not duplicate actions
     if (order.paymentStatus === 'paid' && result.paymentStatus === 'COMPLETE') {
-      await this.save(order);
+      await this.updateOrder(order);
       return { order, alreadyProcessed: true };
     }
 
@@ -229,7 +235,7 @@ export class CloudflareKvOrderStore implements IOrderStore {
       order.statusNotes = `PayFast payment unsuccessful (${result.paymentStatus}).`;
     }
 
-    await this.save(order);
+    await this.updateOrder(order);
     return { order, alreadyProcessed: false };
   }
 }

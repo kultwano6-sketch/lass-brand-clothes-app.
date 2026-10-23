@@ -38,11 +38,15 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
   const [order, setOrder] = useState<SubmittedOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [pollCount, setPollCount] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [pollingState, setPollingState] = useState<'polling' | 'paid' | 'timed_out' | 'failed'>('polling');
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [simulatingItn, setSimulatingItn] = useState(false);
   const [isSandboxEnv, setIsSandboxEnv] = useState(false);
   const hasClearedCartRef = useRef(false);
+  const pollingTimeoutRef = useRef<any>(null);
+  const elapsedTimerRef = useRef<any>(null);
 
   useEffect(() => {
     fetch('/api/health')
@@ -55,10 +59,14 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
       .catch(() => {});
   }, []);
 
-  const fetchOrderStatus = async () => {
+  const fetchOrderStatus = async (): Promise<SubmittedOrder | null> => {
+    if (!orderId) return null;
     try {
       setIsVerifying(true);
-      const res = await fetch(`/api/payfast/order-status/${encodeURIComponent(orderId)}`);
+      // Cache-busting query parameter ensures fresh status from Worker
+      const res = await fetch(
+        `/api/payfast/order-status/${encodeURIComponent(orderId)}?_t=${Date.now()}`
+      );
       if (!res.ok) {
         if (res.status === 404) {
           setErrorMsg(`Order #${orderId} could not be located on the server.`);
@@ -67,7 +75,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
         }
         setLoading(false);
         setIsVerifying(false);
-        return;
+        return null;
       }
 
       const data: any = await res.json();
@@ -77,18 +85,86 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
 
         // Never mark an order paid based only on a browser redirect!
         // ONLY clear cart and show verified state if the server confirmed paymentStatus === 'paid'
-        if (data.paymentStatus === 'paid' && !hasClearedCartRef.current) {
-          hasClearedCartRef.current = true;
-          clearCart();
-          saveLocalOrder(data as SubmittedOrder);
+        if (data.paymentStatus === 'paid') {
+          setPollingState('paid');
+          if (!hasClearedCartRef.current) {
+            hasClearedCartRef.current = true;
+            clearCart();
+            saveLocalOrder(data as SubmittedOrder);
+          }
+        } else if (data.paymentStatus === 'cancelled' || data.paymentStatus === 'failed') {
+          setPollingState('failed');
         }
+        return data as SubmittedOrder;
       }
+      return null;
     } catch (err: any) {
       console.error('Failed to poll order status:', err);
+      return null;
     } finally {
       setLoading(false);
       setIsVerifying(false);
     }
+  };
+
+  // Start / restart polling cycle
+  const startPollingCycle = () => {
+    // Clear any existing timers
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+
+    setPollingState('polling');
+    setElapsedSeconds(0);
+    setPollCount(0);
+
+    const startTime = Date.now();
+
+    // Elapsed timer increments every 1s for user reassurance
+    elapsedTimerRef.current = setInterval(() => {
+      const seconds = Math.floor((Date.now() - startTime) / 1000);
+      setElapsedSeconds(seconds);
+    }, 1000);
+
+    // Adaptive scheduling:
+    // First 12s: every 1.5s (rapid detection when ITN arrives promptly)
+    // 12s-30s: every 2.5s
+    // 30s-60s: every 3.5s
+    // 60s: timeout with clear retry guidance
+    let count = 0;
+    const scheduleNextPoll = (delay: number) => {
+      pollingTimeoutRef.current = setTimeout(async () => {
+        count++;
+        setPollCount(count);
+        const result = await fetchOrderStatus();
+
+        // If paid or failed, stop polling immediately
+        if (result?.paymentStatus === 'paid' || result?.paymentStatus === 'cancelled' || result?.paymentStatus === 'failed') {
+          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+          return;
+        }
+
+        const totalElapsed = (Date.now() - startTime) / 1000;
+        if (totalElapsed >= 60) {
+          // Timeout reached
+          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+          setPollingState('timed_out');
+          return;
+        }
+
+        // Determine next interval
+        const nextDelay = totalElapsed < 12 ? 1500 : totalElapsed < 30 ? 2500 : 3500;
+        scheduleNextPoll(nextDelay);
+      }, delay);
+    };
+
+    // Immediate first check
+    fetchOrderStatus().then((initial) => {
+      if (initial?.paymentStatus === 'paid' || initial?.paymentStatus === 'cancelled' || initial?.paymentStatus === 'failed') {
+        if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+        return;
+      }
+      scheduleNextPoll(1500);
+    });
   };
 
   useEffect(() => {
@@ -98,25 +174,15 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
       return;
     }
 
-    fetchOrderStatus();
-
-    // If returning from PayFast, poll for ITN confirmation up to 15 times (every 2.5s)
-    let interval: any = null;
     if (mode === 'return') {
-      interval = setInterval(() => {
-        setPollCount((prev) => {
-          if (prev >= 15) {
-            clearInterval(interval);
-            return prev;
-          }
-          fetchOrderStatus();
-          return prev + 1;
-        });
-      }, 2500);
+      startPollingCycle();
+    } else {
+      fetchOrderStatus();
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
     };
   }, [orderId, mode]);
 
@@ -206,7 +272,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
           <h2 className="text-xl font-black text-white font-display">Order Verification Notice</h2>
           <p className="text-xs text-zinc-400">{errorMsg}</p>
           <button
-            onClick={fetchOrderStatus}
+            onClick={() => fetchOrderStatus()}
             className="px-5 py-2.5 rounded-xl bg-zinc-800 text-white font-bold text-xs hover:bg-zinc-700"
           >
             Retry Verification
@@ -216,7 +282,76 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
     );
   }
 
-  // 3. PENDING ITN VERIFICATION VIEW
+  // 3. TIMED OUT REASSURANCE VIEW
+  if (pollingState === 'timed_out' && order?.paymentStatus !== 'paid') {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 sm:py-16">
+        <div className="bg-zinc-950 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6 animate-in fade-in duration-300">
+          <div className="w-16 h-16 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400">
+            <Clock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-[11px] uppercase tracking-widest font-black text-amber-400">
+              Payment Notification Pending
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black font-display text-white">
+              Confirmation Still Processing
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
+              We received your return from PayFast. The payment notification is taking slightly longer than usual to arrive from the banking network.
+            </p>
+          </div>
+
+          <div className="p-4 bg-zinc-900/90 rounded-2xl border border-zinc-800 text-left space-y-2.5 text-xs max-w-md mx-auto">
+            <div className="flex justify-between text-zinc-400">
+              <span>Order Reference:</span>
+              <strong className="text-white font-mono">#{orderId}</strong>
+            </div>
+            {order && (
+              <>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Customer:</span>
+                  <span className="text-white">{order.customer.fullName}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Total Due:</span>
+                  <strong className="text-emerald-400 font-bold">{formatZAR(order.estimatedTotal)}</strong>
+                </div>
+              </>
+            )}
+            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-[11px] leading-relaxed">
+              <strong>Notice:</strong> If funds have been debited from your account or card, your payment is secure. <strong>You do not need to pay again.</strong>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-zinc-800">
+            <button
+              onClick={startPollingCycle}
+              disabled={isVerifying}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+            >
+              <RefreshCw className={`w-4 h-4 ${isVerifying ? 'animate-spin' : ''}`} />
+              <span>Check Status Again</span>
+            </button>
+            <a
+              href={`https://wa.me/27${brandConfig.ownerWhatsApp.replace(/^0/, '')}?text=${encodeURIComponent(
+                `Hi ${brandConfig.brandName}, I just paid for order #${orderId} on PayFast (${order ? formatZAR(order.estimatedTotal) : ''}). Could you please confirm payment receipt on your dashboard?`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs sm:text-sm border border-zinc-800 transition-colors flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-400" />
+              <span>WhatsApp Brand Owner</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. PENDING ITN VERIFICATION VIEW
   const isPaid = order?.paymentStatus === 'paid';
 
   if (!isPaid) {
@@ -228,14 +363,15 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
           </div>
 
           <div className="space-y-2">
-            <span className="text-[11px] uppercase tracking-widest font-black text-blue-400">
-              Gateway Verification in Progress
-            </span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-[11px] font-bold text-blue-400">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+              <span>Confirming Payment… ({elapsedSeconds}s)</span>
+            </div>
             <h1 className="text-2xl sm:text-3xl font-black font-display text-white">
               Confirming Payment with PayFast
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
-              We received your redirect from PayFast. For security, our server is verifying the Instant Transaction Notification (ITN) and cryptographic signature to confirm receipt of funds.
+              We received your return from PayFast. For security, our server is awaiting the Instant Transaction Notification (ITN) and cryptographic confirmation from PayFast.
             </p>
           </div>
 
@@ -251,16 +387,16 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
                   <span className="text-white">{order.customer.fullName}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
-                  <span>Total Due:</span>
+                  <span>Total Amount:</span>
                   <strong className="text-emerald-400 font-bold">{formatZAR(order.estimatedTotal)}</strong>
                 </div>
               </>
             )}
-            <div className="flex justify-between text-zinc-400 pt-1 border-t border-zinc-800">
-              <span>Server ITN Check:</span>
-              <span className="text-orange-400 flex items-center gap-1">
+            <div className="flex justify-between text-zinc-400 pt-2 border-t border-zinc-800">
+              <span>Verification Status:</span>
+              <span className="text-blue-400 flex items-center gap-1.5 font-medium">
                 <Clock className="w-3.5 h-3.5 animate-spin" />
-                <span>Polling gateway (attempt {pollCount}/15)...</span>
+                <span>Checking gateway (check #{pollCount})...</span>
               </span>
             </div>
           </div>
@@ -288,7 +424,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-zinc-800">
             <button
-              onClick={fetchOrderStatus}
+              onClick={() => fetchOrderStatus()}
               disabled={isVerifying}
               className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs flex items-center gap-2"
             >

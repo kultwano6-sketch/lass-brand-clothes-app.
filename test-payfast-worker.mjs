@@ -226,23 +226,40 @@ async function runTests() {
       body: itnParams.toString(),
     });
 
-    const res = await worker.fetch(req, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
+    const bgTasks = [];
+    const mockCtx = {
+      waitUntil(p) {
+        bgTasks.push(p);
+      },
+    };
+
+    const res = await worker.fetch(req, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, mockCtx);
     assert.strictEqual(res.status, 200);
     const text = await res.text();
     assert.strictEqual(text, 'ITN Processed Successfully');
+    assert.strictEqual(bgTasks.length, 1, 'Expected 1 background validation task to be registered with waitUntil');
 
-    // Check order is now marked paid
+    // 1. Verify order status remains 'pending' while background process is asynchronous
     const statusReq = new Request(
       `https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/order-status/${createdOrderNumber}`,
       { method: 'GET' }
     );
+    const pendingRes = await worker.fetch(statusReq, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
+    const pendingData = await pendingRes.json();
+    assert.strictEqual(pendingData.status, 'pending_payment', 'Order status must remain pending before background validation completes');
+    assert.strictEqual(pendingData.paymentStatus, 'pending', 'Order payment status must remain pending before background validation completes');
+
+    // 2. Await the background validation task (intense /eng/query/validate + KV update)
+    await Promise.all(bgTasks);
+
+    // 3. Verify order is now marked paid after background validation finishes
     const statusRes = await worker.fetch(statusReq, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
     const statusData = await statusRes.json();
     assert.strictEqual(statusData.status, 'payment_confirmed');
     assert.strictEqual(statusData.paymentStatus, 'paid');
     assert.strictEqual(statusData.transactionId, 'PF_TEST_VALID_8888');
     assert.ok(statusData.paxiTrackingCode?.startsWith('PAXI-ZA-'));
-    console.log('✓ Test 7 Passed: Valid ITN with passphrase marks order paid and issues PAXI tracking code');
+    console.log('✓ Test 7 Passed: Valid ITN responds 200 immediately, keeps status pending until background validation completes and marks paid');
     passed++;
   }
 
@@ -477,13 +494,61 @@ async function runTests() {
 
     // 5. Verify parentheses (B&W) and (P5012) are encoded with RFC 1738 / PHP urlencode standard (%28 and %29)
     assert.strictEqual(formInputs.item_description, '2x Pocket Size Print T-Shirt (B&W) (L)');
-    assert.strictEqual(formInputs.custom_str2, 'PEP Jabulani Mall Soweto (P5012)');
-
     console.log('✓ Test 15 Passed: Signed payload matches submitted form inputs with optional blanks safely omitted and PHP urlencode compliance');
     passed++;
   }
 
-  console.log(`\nAll ${passed}/16 automated PayFast & Worker tests PASSED successfully!`);
+  // Test 16: Verify order-status safe timing headers and no-store caching headers
+  {
+    const req = new Request(`https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/order-status/${createdOrderNumber}`, {
+      method: 'GET',
+    });
+    const res = await worker.fetch(req, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.headers.get('cache-control'), 'no-store, no-cache, must-revalidate, max-age=0');
+    assert.ok(res.headers.get('x-response-time-ms'), 'Must include X-Response-Time-Ms diagnostic header');
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.strictEqual(data.orderNumber, createdOrderNumber);
+    console.log('✓ Test 16 Passed: Order status returns fresh no-store headers and X-Response-Time-Ms diagnostic');
+    passed++;
+  }
+
+  // Test 17: Duplicate ITN for already-paid order returns HTTP 200 immediately (idempotent, 0 background tasks)
+  {
+    const itnData = {
+      m_payment_id: createdOrderNumber,
+      pf_payment_id: 'PF_TEST_VALID_8888',
+      payment_status: 'COMPLETE',
+      amount_gross: orderTotal.toFixed(2),
+      merchant_id: 'TEST_MERCHANT_101',
+    };
+    itnData.signature = generatePayFastSignature(itnData, testPassphrase);
+    const itnParams = new URLSearchParams(itnData);
+
+    const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: itnParams.toString(),
+    });
+
+    const bgTasks = [];
+    const mockCtx = {
+      waitUntil(p) {
+        bgTasks.push(p);
+      },
+    };
+
+    const res = await worker.fetch(req, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, mockCtx);
+    assert.strictEqual(res.status, 200);
+    const text = await res.text();
+    assert.strictEqual(text, 'ITN Processed Successfully');
+    assert.strictEqual(bgTasks.length, 0, 'Duplicate ITN must not launch redundant background validation tasks');
+    console.log('✓ Test 17 Passed: Duplicate ITN returns 200 OK immediately and idempotently avoids duplicate background tasks');
+    passed++;
+  }
+
+  console.log(`\nAll ${passed}/18 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {

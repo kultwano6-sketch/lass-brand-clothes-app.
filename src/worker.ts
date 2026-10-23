@@ -37,7 +37,7 @@ function textResponse(text: string, status = 200): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env, _ctx: any): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
     const method = request.method;
@@ -244,6 +244,7 @@ export default {
 
     // 3. POST /api/payfast/notify (PayFast ITN Webhook)
     if (pathname === '/api/payfast/notify' && method === 'POST') {
+      const itnStart = performance.now();
       try {
         const rawBody = await request.text();
         const searchParams = new URLSearchParams(rawBody);
@@ -252,31 +253,52 @@ export default {
           itnData[k] = v;
         }
 
-        console.log('[Worker PayFast ITN Received]:', {
-          m_payment_id: itnData.m_payment_id,
-          pf_payment_id: itnData.pf_payment_id,
-          payment_status: itnData.payment_status,
-          amount_gross: itnData.amount_gross,
-        });
-
         const orderNumber = itnData.m_payment_id;
         if (!orderNumber) {
+          const totalMs = performance.now() - itnStart;
+          console.warn(`[PayFast ITN Timing] order=unknown status=BAD_REQUEST totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Missing_m_payment_id`);
           return textResponse('Missing m_payment_id', 400);
         }
 
         const order = await orderStore.get(orderNumber);
         if (!order) {
+          const totalMs = performance.now() - itnStart;
+          console.warn(`[PayFast ITN Timing] order=${orderNumber} status=NOT_FOUND totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Order_not_found`);
           return textResponse('Order not found', 400);
         }
 
-        const verification = await verifyPayFastITN(itnData, rawBody, effectiveEnv);
-        if (!verification.isValid) {
+        // Fast synchronous signature validation to verify authenticity before acknowledging
+        const config = getPayFastConfig(effectiveEnv);
+        const startSig = performance.now();
+        const expectedSignature = generatePayFastSignature(itnData, config.passphrase);
+        const signatureMatches =
+          Boolean(itnData.signature) &&
+          expectedSignature.toLowerCase() === String(itnData.signature).toLowerCase();
+        const sigMs = performance.now() - startSig;
+
+        if (!signatureMatches) {
+          const totalMs = performance.now() - itnStart;
+          console.warn(`[PayFast ITN Timing] order=${orderNumber} status=INVALID_SIG sigMs=${sigMs.toFixed(2)} totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Signature_mismatch`);
           return textResponse('Signature mismatch', 400);
+        }
+
+        if (itnData.merchant_id && String(itnData.merchant_id) !== String(config.merchantId)) {
+          const totalMs = performance.now() - itnStart;
+          console.warn(`[PayFast ITN Timing] order=${orderNumber} status=MERCHANT_MISMATCH totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Merchant_mismatch`);
+          return textResponse('Merchant ID mismatch', 400);
         }
 
         const amountGross = parseFloat(itnData.amount_gross || '0');
         if (Math.abs(amountGross - order.estimatedTotal) > 0.05) {
+          const totalMs = performance.now() - itnStart;
+          console.warn(`[PayFast ITN Timing] order=${orderNumber} status=AMOUNT_MISMATCH sigMs=${sigMs.toFixed(2)} totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Amount_mismatch`);
           return textResponse('Amount mismatch', 400);
+        }
+
+        // Idempotency: if already marked paid, immediately return 200 OK without launching background tasks
+        if (order.paymentStatus === 'paid') {
+          console.log(`[PayFast ITN Idempotent] order=${orderNumber} already marked paid; returning 200 OK`);
+          return textResponse('ITN Processed Successfully', 200);
         }
 
         const paymentStatus =
@@ -286,44 +308,108 @@ export default {
             ? 'CANCELLED'
             : 'FAILED';
 
-        await orderStore.recordPaymentResult(orderNumber, {
-          pfPaymentId: itnData.pf_payment_id || `PF-UNKNOWN-${Date.now()}`,
-          paymentStatus,
-          amountGross,
-          signatureVerified: verification.signatureMatches,
-          serverValidated: verification.serverConfirmed,
-          rawItn: itnData,
-        });
+        // Non-blocking asynchronous background validation task:
+        // The order status remains 'pending' until this background process successfully finishes
+        // calling /eng/query/validate and writing the payment result to the KV store.
+        const backgroundValidationTask = (async () => {
+          const bgStart = performance.now();
+          try {
+            const validateFetchStart = performance.now();
+            const verification = await verifyPayFastITN(itnData, rawBody, effectiveEnv);
+            const validateFetchEnd = performance.now();
 
+            if (!verification.isValid) {
+              console.warn(
+                `[PayFast ITN Background] order=${orderNumber} validation failed isValid=false`
+              );
+              return;
+            }
+
+            const kvStoreStart = performance.now();
+            await orderStore.recordPaymentResult(orderNumber, {
+              pfPaymentId: itnData.pf_payment_id || `PF-UNKNOWN-${Date.now()}`,
+              paymentStatus,
+              amountGross,
+              signatureVerified: verification.signatureMatches,
+              serverValidated: verification.serverConfirmed,
+              rawItn: itnData,
+            });
+            const kvStoreEnd = performance.now();
+            const totalValidationLogicMs = performance.now() - bgStart;
+
+            // Structured log entry recording the total duration of the validation logic
+            console.log(
+              `[PayFast ITN Background Validation] order=${orderNumber} status=${paymentStatus} valApiMs=${(validateFetchEnd - validateFetchStart).toFixed(2)} kvWriteMs=${(kvStoreEnd - kvStoreStart).toFixed(2)} totalValidationLogicMs=${totalValidationLogicMs.toFixed(2)}`
+            );
+          } catch (bgErr: any) {
+            const totalValidationLogicMs = performance.now() - bgStart;
+            console.error(
+              `[PayFast ITN Background Validation Error] order=${orderNumber} totalValidationLogicMs=${totalValidationLogicMs.toFixed(2)} error=${bgErr?.message || 'unknown'}`
+            );
+          }
+        })();
+
+        // Register with Cloudflare Workers ExecutionContext so isolate stays alive
+        if (ctx && typeof ctx.waitUntil === 'function') {
+          ctx.waitUntil(backgroundValidationTask);
+        } else {
+          backgroundValidationTask.catch((err) =>
+            console.error('Background ITN validation error:', err)
+          );
+        }
+
+        const immediateResponseMs = performance.now() - itnStart;
+        console.log(
+          `[PayFast ITN Immediate 200 OK] order=${orderNumber} sigVerified=true responseMs=${immediateResponseMs.toFixed(2)}`
+        );
+
+        // Respond with 200 OK immediately after validating signature to stop PayFast retries
         return textResponse('ITN Processed Successfully', 200);
       } catch (err: any) {
-        console.error('Error processing ITN in worker:', err);
+        const totalMs = performance.now() - itnStart;
+        console.error(`[PayFast ITN Timing] order=unknown status=INTERNAL_ERROR totalMs=${totalMs.toFixed(2)} httpStatus=500 error=${err?.message || 'unknown'}`);
         return textResponse('Internal Server Error processing ITN', 500);
       }
     }
 
     // 4. GET /api/payfast/order-status/:orderId
     if (pathname.startsWith('/api/payfast/order-status/') && method === 'GET') {
+      const statusStart = Date.now();
       const orderId = decodeURIComponent(pathname.replace('/api/payfast/order-status/', ''));
       const order = await orderStore.get(orderId);
+      const statusMs = Date.now() - statusStart;
       if (!order) {
-        return jsonResponse({ success: false, error: `Order ${orderId} not found.` }, 404);
+        return jsonResponse(
+          { success: false, error: `Order ${orderId} not found.` },
+          404,
+          {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'X-Response-Time-Ms': String(statusMs),
+          }
+        );
       }
 
-      return jsonResponse({
-        success: true,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        paymentStatus: order.paymentStatus || 'pending',
-        paymentMethod: order.paymentMethod,
-        transactionId: order.transactionId,
-        paxiTrackingCode: order.paxiTrackingCode,
-        paidAt: order.paidAt,
-        estimatedTotal: order.estimatedTotal,
-        date: order.date,
-        customer: order.customer,
-        items: order.items,
-      });
+      return jsonResponse(
+        {
+          success: true,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          paymentStatus: order.paymentStatus || 'pending',
+          paymentMethod: order.paymentMethod,
+          transactionId: order.transactionId,
+          paxiTrackingCode: order.paxiTrackingCode,
+          paidAt: order.paidAt,
+          estimatedTotal: order.estimatedTotal,
+          date: order.date,
+          customer: order.customer,
+          items: order.items,
+        },
+        200,
+        {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'X-Response-Time-Ms': String(statusMs),
+        }
+      );
     }
 
     // 5. GET /api/orders
