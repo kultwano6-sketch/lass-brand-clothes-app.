@@ -1,7 +1,11 @@
 import assert from 'node:assert';
 import crypto from 'node:crypto';
 import worker from './src/worker.ts';
-import { generatePayFastSignature } from './server/payfast.ts';
+import {
+  generatePayFastSignature,
+  generatePayFastITNSignature,
+  verifyPayFastITNSignature,
+} from './server/payfast.ts';
 
 // Mock Cloudflare KV Namespace for test runner
 class MockKVNamespace {
@@ -191,7 +195,7 @@ async function runTests() {
       payment_status: 'COMPLETE',
       amount_gross: '10.00', // tampered amount, expected 560.00
     };
-    itnData.signature = generatePayFastSignature(itnData, testPassphrase);
+    itnData.signature = generatePayFastITNSignature(itnData, testPassphrase);
     const itnParams = new URLSearchParams(itnData);
 
     const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify', {
@@ -217,7 +221,7 @@ async function runTests() {
       amount_gross: orderTotal.toFixed(2),
       merchant_id: 'TEST_MERCHANT_101',
     };
-    itnData.signature = generatePayFastSignature(itnData, testPassphrase);
+    itnData.signature = generatePayFastITNSignature(itnData, testPassphrase);
     const itnParams = new URLSearchParams(itnData);
 
     const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify', {
@@ -523,7 +527,7 @@ async function runTests() {
       amount_gross: orderTotal.toFixed(2),
       merchant_id: 'TEST_MERCHANT_101',
     };
-    itnData.signature = generatePayFastSignature(itnData, testPassphrase);
+    itnData.signature = generatePayFastITNSignature(itnData, testPassphrase);
     const itnParams = new URLSearchParams(itnData);
 
     const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify', {
@@ -548,7 +552,169 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`\nAll ${passed}/18 automated PayFast & Worker tests PASSED successfully!`);
+  // Test 18: Dedicated verifyPayFastITNSignature verifies exact arrival order with passphrase
+  {
+    const itnPayload = {
+      m_payment_id: 'LASS-9901',
+      pf_payment_id: '12345678',
+      payment_status: 'COMPLETE',
+      item_name: 'LASS Pocket Print T-Shirt (B&W)',
+      amount_gross: '280.00',
+      amount_fee: '-6.44',
+      amount_net: '273.56',
+      merchant_id: '10004002',
+    };
+    const passphrase = 'PAYFAST_TEST_PASSPHRASE_2026';
+    const signature = generatePayFastITNSignature(itnPayload, passphrase, 'arrival');
+    const completePayload = { ...itnPayload, signature };
+
+    // Format raw POST body
+    const searchParams = new URLSearchParams(completePayload);
+    const rawBody = searchParams.toString();
+
+    const result = verifyPayFastITNSignature(completePayload, rawBody, passphrase);
+    assert.strictEqual(result.isValid, true);
+    assert.strictEqual(result.matchedOrder, 'arrival');
+    assert.strictEqual(result.receivedSignature, signature);
+    console.log('✓ Test 18 Passed: Dedicated verifyPayFastITNSignature verifies exact arrival order with passphrase');
+    passed++;
+  }
+
+  // Test 19: verifyPayFastITNSignature verifies un-salted ITN payload (no passphrase configured)
+  {
+    const itnPayload = {
+      m_payment_id: 'LASS-9902',
+      pf_payment_id: '12345679',
+      payment_status: 'COMPLETE',
+      item_name: 'LASS Oversized Tee',
+      amount_gross: '320.00',
+      amount_fee: '-7.36',
+      amount_net: '312.64',
+      merchant_id: '10004002',
+    };
+    const signature = generatePayFastITNSignature(itnPayload, undefined, 'arrival');
+    const completePayload = { ...itnPayload, signature };
+    const rawBody = new URLSearchParams(completePayload).toString();
+
+    const result = verifyPayFastITNSignature(completePayload, rawBody, undefined);
+    assert.strictEqual(result.isValid, true);
+    assert.strictEqual(result.receivedSignature, signature);
+    console.log('✓ Test 19 Passed: Dedicated verifyPayFastITNSignature verifies un-salted ITN payload without passphrase');
+    passed++;
+  }
+
+  // Test 20: Security test - verifyPayFastITNSignature strictly rejects wrong passphrase
+  {
+    const itnPayload = {
+      m_payment_id: 'LASS-9903',
+      pf_payment_id: '12345680',
+      payment_status: 'COMPLETE',
+      amount_gross: '280.00',
+      merchant_id: '10004002',
+    };
+    const correctPassphrase = 'SECRET_PASSPHRASE_A';
+    const wrongPassphrase = 'SECRET_PASSPHRASE_B';
+    const signature = generatePayFastITNSignature(itnPayload, correctPassphrase, 'arrival');
+    const completePayload = { ...itnPayload, signature };
+    const rawBody = new URLSearchParams(completePayload).toString();
+
+    const result = verifyPayFastITNSignature(completePayload, rawBody, wrongPassphrase);
+    assert.strictEqual(result.isValid, false, 'Signature verification must fail when passphrase does not match');
+    console.log('✓ Test 20 Passed: Security test - verifyPayFastITNSignature strictly rejects wrong passphrase');
+    passed++;
+  }
+
+  // Test 21: Security test - verifyPayFastITNSignature strictly rejects tampered/wrong signature
+  {
+    const itnPayload = {
+      m_payment_id: 'LASS-9904',
+      pf_payment_id: '12345681',
+      payment_status: 'COMPLETE',
+      amount_gross: '280.00',
+      merchant_id: '10004002',
+      signature: '0123456789abcdef0123456789abcdef', // completely forged signature
+    };
+    const rawBody = new URLSearchParams(itnPayload).toString();
+
+    const result = verifyPayFastITNSignature(itnPayload, rawBody, 'SOME_PASSPHRASE');
+    assert.strictEqual(result.isValid, false, 'Forged signature must be rejected');
+    console.log('✓ Test 21 Passed: Security test - verifyPayFastITNSignature strictly rejects tampered/forged signature');
+    passed++;
+  }
+
+  // Test 22: verifyPayFastITNSignature safely excludes optional blank and whitespace fields
+  {
+    const basePayload = {
+      m_payment_id: 'LASS-9905',
+      pf_payment_id: '12345682',
+      payment_status: 'COMPLETE',
+      amount_gross: '280.00',
+      merchant_id: '10004002',
+    };
+    const payloadWithBlanks = {
+      ...basePayload,
+      custom_str1: '',
+      custom_str2: '   ',
+      custom_str3: undefined,
+    };
+    const passphrase = 'TEST_PASSPHRASE_BLANKS';
+    const sigClean = generatePayFastITNSignature(basePayload, passphrase, 'arrival');
+    const sigWithBlanks = generatePayFastITNSignature(payloadWithBlanks, passphrase, 'arrival');
+    assert.strictEqual(sigClean, sigWithBlanks, 'Signatures must be identical when optional fields are empty or whitespace');
+
+    const result = verifyPayFastITNSignature({ ...payloadWithBlanks, signature: sigClean }, undefined, passphrase);
+    assert.strictEqual(result.isValid, true);
+    console.log('✓ Test 22 Passed: verifyPayFastITNSignature safely excludes optional blank and whitespace fields');
+    passed++;
+  }
+
+  // Test 23: verifyPayFastITNSignature validates documented ITN table order and alphabetical order
+  {
+    const itnPayload = {
+      merchant_id: '10004002',
+      amount_gross: '280.00',
+      m_payment_id: 'LASS-9906',
+      payment_status: 'COMPLETE',
+      pf_payment_id: '12345683',
+    };
+    const passphrase = 'TEST_PASSPHRASE_ORDER';
+    // Documented ITN order
+    const documentedSig = generatePayFastITNSignature(itnPayload, passphrase, 'documented_itn');
+    const docResult = verifyPayFastITNSignature({ ...itnPayload, signature: documentedSig }, undefined, passphrase);
+    assert.strictEqual(docResult.isValid, true);
+    assert.strictEqual(docResult.matchedOrder, 'documented_itn');
+
+    // Alphabetical order
+    const alphaSig = generatePayFastITNSignature(itnPayload, passphrase, 'alphabetical');
+    const alphaResult = verifyPayFastITNSignature({ ...itnPayload, signature: alphaSig }, undefined, passphrase);
+    assert.strictEqual(alphaResult.isValid, true);
+    assert.strictEqual(alphaResult.matchedOrder, 'alphabetical');
+    console.log('✓ Test 23 Passed: verifyPayFastITNSignature validates documented ITN table order and alphabetical order');
+    passed++;
+  }
+
+  // Test 24: Special characters RFC 1738 / PHP urlencode encoding compliance in ITN payloads
+  {
+    const payloadWithSpecialChars = {
+      m_payment_id: 'LASS-9907',
+      pf_payment_id: '12345684',
+      payment_status: 'COMPLETE',
+      item_name: 'Pocket Print T-Shirt (B&W) / Soweto Edition *Limited*',
+      item_description: '100% Cotton, 180gsm! @Jabulani',
+      amount_gross: '560.00',
+      merchant_id: '10004002',
+    };
+    const passphrase = 'HARVEST KE LASS!';
+    const signature = generatePayFastITNSignature(payloadWithSpecialChars, passphrase, 'arrival');
+    const rawBody = new URLSearchParams({ ...payloadWithSpecialChars, signature }).toString();
+
+    const result = verifyPayFastITNSignature({ ...payloadWithSpecialChars, signature }, rawBody, passphrase);
+    assert.strictEqual(result.isValid, true);
+    console.log('✓ Test 24 Passed: Special characters RFC 1738 / PHP urlencode compliance verified in ITN signatures');
+    passed++;
+  }
+
+  console.log(`\nAll ${passed}/25 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {

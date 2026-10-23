@@ -3,6 +3,7 @@ import {
   createHostedCheckoutPayload,
   verifyPayFastITN,
   generatePayFastSignature,
+  verifyPayFastITNSignature,
   PayFastEnv,
 } from '../server/payfast.js';
 import { getOrderStore, SubmittedOrder } from '../server/orderStore.js';
@@ -267,13 +268,11 @@ export default {
           return textResponse('Order not found', 400);
         }
 
-        // Fast synchronous signature validation to verify authenticity before acknowledging
+        // Fast synchronous signature validation using dedicated ITN verifier
         const config = getPayFastConfig(effectiveEnv);
         const startSig = performance.now();
-        const expectedSignature = generatePayFastSignature(itnData, config.passphrase);
-        const signatureMatches =
-          Boolean(itnData.signature) &&
-          expectedSignature.toLowerCase() === String(itnData.signature).toLowerCase();
+        const itnSigCheck = verifyPayFastITNSignature(itnData, rawBody, config.passphrase);
+        const signatureMatches = itnSigCheck.isValid;
         const sigMs = performance.now() - startSig;
 
         if (!signatureMatches) {

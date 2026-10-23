@@ -277,8 +277,212 @@ export function createHostedCheckoutPayload(
 }
 
 /**
+ * Official PayFast ITN parameter sequence according to PayFast ITN documentation:
+ * https://developers.payfast.co.za/docs/itn-instant-transaction-notification/
+ */
+export const PAYFAST_ITN_DOCUMENTED_ORDER: readonly string[] = [
+  'm_payment_id',
+  'pf_payment_id',
+  'payment_status',
+  'item_name',
+  'item_description',
+  'amount_gross',
+  'amount_fee',
+  'amount_net',
+  'custom_str1',
+  'custom_str2',
+  'custom_str3',
+  'custom_str4',
+  'custom_str5',
+  'custom_int1',
+  'custom_int2',
+  'custom_int3',
+  'custom_int4',
+  'custom_int5',
+  'name_first',
+  'name_last',
+  'email_address',
+  'merchant_id',
+] as const;
+
+/**
+ * Builds a PayFast signature string for a specific sequence of key-value pairs.
+ * Omit blank/empty fields and 'signature'.
+ * Formats values with PayFast RFC 1738 / PHP urlencode (spaces as '+', uppercase hex).
+ * Appends &passphrase=... if provided.
+ */
+export function buildPayFastSignatureString(
+  pairs: Array<[string, any]>,
+  passphrase?: string
+): string {
+  const parts: string[] = [];
+
+  for (const [key, value] of pairs) {
+    if (key === 'signature') continue;
+    if (value === undefined || value === null) continue;
+    const strVal = String(value).trim();
+    if (strVal === '') continue;
+
+    parts.push(`${key}=${payfastUrlEncode(strVal)}`);
+  }
+
+  let paramString = parts.join('&');
+  if (passphrase && passphrase.trim() !== '') {
+    paramString += `&passphrase=${payfastUrlEncode(passphrase.trim())}`;
+  }
+
+  return paramString;
+}
+
+/**
+ * Dedicated PayFast ITN Signature Verifier:
+ * Validates incoming ITN notifications following PayFast's official ITN specification:
+ * - Excludes 'signature' from the parameter list.
+ * - Excludes empty or blank values.
+ * - Values URL-encoded using RFC 1738 / PHP urlencode matching (spaces as '+', uppercase hex).
+ * - Tests received POST arrival sequence (primary PayFast PHP SDK standard),
+ *   documented ITN table order (PAYFAST_ITN_DOCUMENTED_ORDER), and alphabetical order.
+ * - Strictly validates against configured passphrase (never uses default/random passphrases).
+ */
+export function verifyPayFastITNSignature(
+  itnData: Record<string, any>,
+  rawBody?: string,
+  passphrase?: string
+): {
+  isValid: boolean;
+  expectedSignature: string;
+  receivedSignature: string;
+  matchedOrder?: 'arrival' | 'documented_itn' | 'alphabetical';
+} {
+  const receivedSig = String(itnData.signature || '').trim().toLowerCase();
+  if (!receivedSig) {
+    return {
+      isValid: false,
+      expectedSignature: '',
+      receivedSignature: '',
+    };
+  }
+
+  // 1. Candidate 1: Raw POST arrival order (if rawBody is provided)
+  if (rawBody && rawBody.trim()) {
+    const searchParams = new URLSearchParams(rawBody);
+    const arrivalPairs: Array<[string, string]> = [];
+    for (const [k, v] of searchParams.entries()) {
+      arrivalPairs.push([k, v]);
+    }
+    const arrivalString = buildPayFastSignatureString(arrivalPairs, passphrase);
+    const arrivalSig = crypto.createHash('md5').update(arrivalString).digest('hex');
+    if (arrivalSig.toLowerCase() === receivedSig) {
+      return {
+        isValid: true,
+        expectedSignature: arrivalSig,
+        receivedSignature: receivedSig,
+        matchedOrder: 'arrival',
+      };
+    }
+  }
+
+  // Also check arrival order from Object.entries(itnData)
+  const dataPairs = Object.entries(itnData);
+  const dataArrivalString = buildPayFastSignatureString(dataPairs, passphrase);
+  const dataArrivalSig = crypto.createHash('md5').update(dataArrivalString).digest('hex');
+  if (dataArrivalSig.toLowerCase() === receivedSig) {
+    return {
+      isValid: true,
+      expectedSignature: dataArrivalSig,
+      receivedSignature: receivedSig,
+      matchedOrder: 'arrival',
+    };
+  }
+
+  // 2. Candidate 2: Documented ITN Table Field Order (PAYFAST_ITN_DOCUMENTED_ORDER)
+  const documentedPairs: Array<[string, any]> = [];
+  for (const key of PAYFAST_ITN_DOCUMENTED_ORDER) {
+    if (key in itnData && key !== 'signature') {
+      documentedPairs.push([key, itnData[key]]);
+    }
+  }
+  for (const key of Object.keys(itnData)) {
+    if (key !== 'signature' && !PAYFAST_ITN_DOCUMENTED_ORDER.includes(key as any)) {
+      documentedPairs.push([key, itnData[key]]);
+    }
+  }
+  const documentedString = buildPayFastSignatureString(documentedPairs, passphrase);
+  const documentedSig = crypto.createHash('md5').update(documentedString).digest('hex');
+  if (documentedSig.toLowerCase() === receivedSig) {
+    return {
+      isValid: true,
+      expectedSignature: documentedSig,
+      receivedSignature: receivedSig,
+      matchedOrder: 'documented_itn',
+    };
+  }
+
+  // 3. Candidate 3: Alphabetical Field Order (API / Webhook specification)
+  const alphaKeys = Object.keys(itnData)
+    .filter((k) => k !== 'signature')
+    .sort();
+  const alphaPairs: Array<[string, any]> = alphaKeys.map((k) => [k, itnData[k]]);
+  const alphaString = buildPayFastSignatureString(alphaPairs, passphrase);
+  const alphaSig = crypto.createHash('md5').update(alphaString).digest('hex');
+  if (alphaSig.toLowerCase() === receivedSig) {
+    return {
+      isValid: true,
+      expectedSignature: alphaSig,
+      receivedSignature: receivedSig,
+      matchedOrder: 'alphabetical',
+    };
+  }
+
+  // Return failure with dataArrivalSig as diagnostic expectedSignature
+  return {
+    isValid: false,
+    expectedSignature: dataArrivalSig || documentedSig,
+    receivedSignature: receivedSig,
+  };
+}
+
+/**
+ * Generates an MD5 signature for an ITN payload following PayFast's official ITN specification:
+ * - Iterates through fields in the exact ITN parameter order (arrival or documented ITN order)
+ * - Excludes 'signature'
+ * - Excludes blank/empty fields
+ * - Encodes values with RFC 1738 / PHP urlencode (spaces as '+', uppercase hex)
+ * - Appends &passphrase=... if provided
+ */
+export function generatePayFastITNSignature(
+  itnData: Record<string, any>,
+  passphrase?: string,
+  order: 'arrival' | 'documented_itn' | 'alphabetical' = 'arrival'
+): string {
+  let pairs: Array<[string, any]>;
+  if (order === 'alphabetical') {
+    const sortedKeys = Object.keys(itnData).filter((k) => k !== 'signature').sort();
+    pairs = sortedKeys.map((k) => [k, itnData[k]]);
+  } else if (order === 'documented_itn') {
+    pairs = [];
+    for (const key of PAYFAST_ITN_DOCUMENTED_ORDER) {
+      if (key in itnData && key !== 'signature') {
+        pairs.push([key, itnData[key]]);
+      }
+    }
+    for (const key of Object.keys(itnData)) {
+      if (key !== 'signature' && !PAYFAST_ITN_DOCUMENTED_ORDER.includes(key as any)) {
+        pairs.push([key, itnData[key]]);
+      }
+    }
+  } else {
+    // Arrival order
+    pairs = Object.entries(itnData);
+  }
+
+  const paramString = buildPayFastSignatureString(pairs, passphrase);
+  return crypto.createHash('md5').update(paramString).digest('hex');
+}
+
+/**
  * Validates an incoming Instant Transaction Notification (ITN) payload:
- * 1. Re-computes and checks signature.
+ * 1. Re-computes and checks signature using dedicated verifyPayFastITNSignature.
  * 2. Validates parameters against merchant settings.
  * 3. Calls PayFast server-to-server validation endpoint to confirm authenticity.
  */
@@ -309,11 +513,10 @@ export async function verifyPayFastITN(
     };
   }
 
-  // Step 1: Re-compute signature
+  // Step 1: Re-compute signature using dedicated ITN verifier
   const startSig = performance.now();
-  const expectedSignature = generatePayFastSignature(itnData, config.passphrase);
-  const signatureMatches =
-    expectedSignature.toLowerCase() === String(receivedSignature).toLowerCase();
+  const itnSigCheck = verifyPayFastITNSignature(itnData, rawBodyString, config.passphrase);
+  const signatureMatches = itnSigCheck.isValid;
   const sigMs = performance.now() - startSig;
 
   if (!signatureMatches) {
@@ -322,7 +525,7 @@ export async function verifyPayFastITN(
       signatureMatches: false,
       serverConfirmed: false,
       timing: { sigMs, validateMs: 0 },
-      error: `Signature mismatch. Expected: ${expectedSignature}, Received: ${receivedSignature}`,
+      error: `Signature mismatch. Expected: ${itnSigCheck.expectedSignature}, Received: ${receivedSignature}`,
     };
   }
 
