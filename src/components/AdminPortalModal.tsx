@@ -70,18 +70,18 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   onUpdateProducts,
   onResetToDefault,
 }) => {
-  // Security: Portal is locked and unlocked ONLY with the custom PIN (default: 000)
+  // Security: Portal is locked and unlocked ONLY with the custom PIN (default: 0000)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [pinError, setPinError] = useState(false);
 
-  // Stored Custom PIN: default is 000 as explicitly requested
+  // Stored Custom PIN: default is 0000 as explicitly requested
   const [storedPin, setStoredPin] = useState(() => {
     const existing = localStorage.getItem(OWNER_PIN_STORAGE_KEY);
-    // If empty or legacy '0000', initialize to requested custom PIN '000'
-    if (!existing || existing === '0000') {
-      localStorage.setItem(OWNER_PIN_STORAGE_KEY, '000');
-      return '000';
+    // If empty or legacy '000', initialize to admin password '0000'
+    if (!existing || existing === '000') {
+      localStorage.setItem(OWNER_PIN_STORAGE_KEY, '0000');
+      return '0000';
     }
     return existing;
   });
@@ -191,9 +191,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       setPinError(false);
       setShowUnlockPin(false);
       let pin = localStorage.getItem(OWNER_PIN_STORAGE_KEY);
-      if (!pin || pin === '0000') {
-        pin = '000';
-        localStorage.setItem(OWNER_PIN_STORAGE_KEY, '000');
+      if (!pin || pin === '000') {
+        pin = '0000';
+        localStorage.setItem(OWNER_PIN_STORAGE_KEY, '0000');
       }
       setStoredPin(pin);
     }
@@ -213,7 +213,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPin = adminPin.trim();
-    if (cleanPin === storedPin || cleanPin === '000') {
+    if (cleanPin === storedPin || cleanPin === '0000') {
       setIsAuthenticated(true);
       setPinError(false);
       setAdminPin('');
@@ -262,8 +262,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   };
 
   const handleResetPinToDefault = () => {
-    localStorage.setItem(OWNER_PIN_STORAGE_KEY, '000');
-    setStoredPin('000');
+    localStorage.setItem(OWNER_PIN_STORAGE_KEY, '0000');
+    setStoredPin('0000');
     setNewPinInput('');
     setConfirmPinInput('');
     setPinChangeError('');
