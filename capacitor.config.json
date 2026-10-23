@@ -1,6 +1,6 @@
 {
   "appId": "za.co.lassbrandclothes.app",
-  "appName": "LASS Brand Clothes",
+  "appName": "LASS",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {

@@ -119,20 +119,17 @@ export const Header: React.FC<HeaderProps> = ({
           <div
             onClick={handleDiscreetLogoClick}
             className="flex items-center gap-2.5 cursor-pointer select-none group relative"
-            title="LASS Brand Clothes"
+            title="LASS"
           >
             <img
               src="/logo.svg"
-              alt="LASS Brand Clothes Logo"
+              alt="LASS Logo"
               className="w-9 h-9 rounded-xl bg-black border border-emerald-500/80 group-hover:border-orange-500 shadow-md transition-all group-active:scale-95 object-contain"
             />
 
             <div className="flex flex-col">
-              <span className="font-display font-black text-lg sm:text-xl tracking-wider text-white uppercase group-hover:text-emerald-400 transition-colors leading-none">
+              <span className="font-display font-black text-xl sm:text-2xl tracking-wider text-white uppercase group-hover:text-emerald-400 transition-colors leading-none">
                 LASS
-              </span>
-              <span className="text-[9px] uppercase tracking-widest text-orange-400 font-extrabold mt-0.5">
-                Brand Clothes
               </span>
             </div>
           </div>

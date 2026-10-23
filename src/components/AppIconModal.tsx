@@ -236,7 +236,7 @@ export const AppIconModal: React.FC<AppIconModalProps> = ({
                       />
                     </div>
                     <span className="text-[10px] font-black text-emerald-300 truncate w-14">
-                      LASS Clothes
+                      LASS
                     </span>
                   </div>
 

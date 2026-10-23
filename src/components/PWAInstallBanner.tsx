@@ -74,7 +74,7 @@ export const PWAInstallBanner: React.FC = () => {
 
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-xs sm:text-sm text-white font-display">
-              Install LASS Clothes App
+              Install LASS App
             </h4>
             <p className="text-[11px] text-zinc-300 mt-0.5 leading-snug">
               Fast mobile shopping, offline browsing &amp; instant WhatsApp ordering on your home screen.

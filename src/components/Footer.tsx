@@ -57,11 +57,11 @@ export const Footer: React.FC<FooterProps> = ({
             <div
               onClick={handleFooterLogoTap}
               className="flex items-center gap-2.5 cursor-pointer select-none group"
-              title="LASS Brand Clothes"
+              title="LASS"
             >
               <img
                 src="/logo.svg"
-                alt="LASS Brand Clothes"
+                alt="LASS"
                 className="w-9 h-9 rounded-xl bg-black border border-emerald-500/80 group-hover:border-orange-500 shadow-sm transition-all object-contain"
               />
               <span className="font-display font-black text-white text-lg tracking-wider">

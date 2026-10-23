@@ -1,7 +1,7 @@
 import { BrandConfig } from '../types';
 
 export const INITIAL_BRAND_CONFIG: BrandConfig = {
-  brandName: 'LASS Brand Clothes',
+  brandName: 'LASS',
   tagline: 'HARVEST KE LASS',
   manifesto: 'The only Kasi wear that drives the world insane. Wear and believe in yourself no matter the judgement and circumstances you will be facing in the process of life.',
   subManifesto: 'BONA, NTWANA O LASS! TAKE IT AS ONE POINT OF YOUR LIFE. "From the dust of poverty rises the seed of belief."',
