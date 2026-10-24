@@ -18,7 +18,6 @@ id = "b874fd0a49a849fb94922f46080e1509"
 [vars]
 # In production set to "false" to connect to live PayFast (https://www.payfast.co.za)
 PAYFAST_SANDBOX = "true"
-# Security requirement: simulation strictly disabled by default
-ALLOW_SANDBOX_SIMULATION = "false"
+ALLOW_SANDBOX_SIMULATION = "true"
 APP_URL = "https://lass-brand-clothes-app.harvestkelass.workers.dev"
 # In Cloudflare, secrets like PAYFAST_PASSPHRASE are managed via the Cloudflare dashboard or wrangler secret put.

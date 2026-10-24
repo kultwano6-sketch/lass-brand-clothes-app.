@@ -5,6 +5,8 @@ import {
   generatePayFastSignature,
   generatePayFastITNSignature,
   verifyPayFastITNSignature,
+  createHostedCheckoutPayload,
+  getPayFastConfig,
 } from './server/payfast.ts';
 
 // Mock Cloudflare KV Namespace for test runner
@@ -714,7 +716,56 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`\nAll ${passed}/25 automated PayFast & Worker tests PASSED successfully!`);
+  // Test 25: Localhost notify_url safely falls back to public HTTPS worker endpoint
+  {
+    const localPayload = createHostedCheckoutPayload({
+      orderNumber: 'LASS-LOCAL-TEST',
+      amount: 250,
+      itemName: 'T-Shirt',
+      nameFirst: 'Thabo',
+      emailAddress: 'thabo@example.com'
+    }, {
+      APP_URL: 'http://localhost:3000',
+      PAYFAST_SANDBOX: 'true'
+    });
+    assert.strictEqual(
+      localPayload.payload.notify_url,
+      'https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify'
+    );
+    console.log('✓ Test 25 Passed: Localhost notify_url safely falls back to public HTTPS worker endpoint for ITN callbacks');
+    passed++;
+  }
+
+  // Test 26: Live merchant ID 10056107 in Sandbox mode maps to working test account 10004002
+  {
+    const sandboxCfg = getPayFastConfig({
+      PAYFAST_MERCHANT_ID: '10056107',
+      PAYFAST_MERCHANT_KEY: '83lc36ab316ei',
+      PAYFAST_SANDBOX: 'true'
+    });
+    assert.strictEqual(sandboxCfg.merchantId, '10004002');
+    assert.strictEqual(sandboxCfg.merchantKey, 'q1cd2rdny4a53');
+    assert.strictEqual(sandboxCfg.passphrase, 'payfast');
+    console.log('✓ Test 26 Passed: Live credentials 10056107 in Sandbox safely map to active test account 10004002');
+    passed++;
+  }
+
+  // Test 27: Live credentials in production mode (PAYFAST_SANDBOX='false') preserve user's merchant ID
+  {
+    const liveCfg = getPayFastConfig({
+      PAYFAST_MERCHANT_ID: '10056107',
+      PAYFAST_MERCHANT_KEY: '83lc36ab316ei',
+      PAYFAST_SANDBOX: 'false'
+    });
+    assert.strictEqual(liveCfg.merchantId, '10056107');
+    assert.strictEqual(liveCfg.merchantKey, '83lc36ab316ei');
+    assert.strictEqual(liveCfg.isSandbox, false);
+    assert.strictEqual(liveCfg.processUrl, 'https://www.payfast.co.za/eng/process');
+    console.log('✓ Test 27 Passed: Live credentials are fully preserved in production mode (payfast.co.za)');
+    passed++;
+  }
+
+  console.log(`\nAll ${passed}/28 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {

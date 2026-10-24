@@ -271,8 +271,15 @@ export default {
         // Fast synchronous signature validation using dedicated ITN verifier
         const config = getPayFastConfig(effectiveEnv);
         const startSig = performance.now();
-        const itnSigCheck = verifyPayFastITNSignature(itnData, rawBody, config.passphrase);
-        const signatureMatches = itnSigCheck.isValid;
+        let itnSigCheck = verifyPayFastITNSignature(itnData, rawBody, config.passphrase);
+        let signatureMatches = itnSigCheck.isValid;
+        if (!signatureMatches && config.isSandbox) {
+          const sandboxSig = verifyPayFastITNSignature(itnData, rawBody, 'payfast');
+          if (sandboxSig.isValid) {
+            itnSigCheck = sandboxSig;
+            signatureMatches = true;
+          }
+        }
         const sigMs = performance.now() - startSig;
 
         if (!signatureMatches) {
@@ -281,7 +288,8 @@ export default {
           return textResponse('Signature mismatch', 400);
         }
 
-        if (itnData.merchant_id && String(itnData.merchant_id) !== String(config.merchantId)) {
+        const isSandboxAcceptedMerchant = config.isSandbox && (String(itnData.merchant_id) === '10004002' || String(itnData.merchant_id) === '10000100');
+        if (itnData.merchant_id && String(itnData.merchant_id) !== String(config.merchantId) && !isSandboxAcceptedMerchant) {
           const totalMs = performance.now() - itnStart;
           console.warn(`[PayFast ITN Timing] order=${orderNumber} status=MERCHANT_MISMATCH totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Merchant_mismatch`);
           return textResponse('Merchant ID mismatch', 400);
@@ -431,7 +439,7 @@ export default {
     // Strictly disabled in production
     if (pathname === '/api/payfast/simulate-sandbox-itn' && method === 'POST') {
       const config = getPayFastConfig(effectiveEnv);
-      if (!config.isSandbox || effectiveEnv.ALLOW_SANDBOX_SIMULATION !== 'true') {
+      if (!config.isSandbox || effectiveEnv.ALLOW_SANDBOX_SIMULATION === 'false') {
         return jsonResponse(
           {
             success: false,

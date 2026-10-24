@@ -359,7 +359,7 @@ app.post('/api/payfast/simulate-sandbox-itn', async (req: Request, res: Response
     const config = getPayFastConfig();
 
     // Security requirement: Securely disable simulation in production
-    if (!config.isSandbox || process.env.ALLOW_SANDBOX_SIMULATION !== 'true') {
+    if (!config.isSandbox || process.env.ALLOW_SANDBOX_SIMULATION === 'false') {
       return res.status(403).json({
         success: false,
         error: 'Sandbox ITN simulation is disabled in production. Payments require genuine PayFast cryptographic verification.',

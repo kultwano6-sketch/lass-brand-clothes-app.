@@ -323,6 +323,27 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
             <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-[11px] leading-relaxed">
               <strong>Notice:</strong> If funds have been debited from your account or card, your payment is secure. <strong>You do not need to pay again.</strong>
             </div>
+
+            {/* Sandbox ITN Helper Button when testing in sandbox environment */}
+            {isSandboxEnv && (
+              <div className="pt-2 flex flex-col items-center gap-1.5">
+                <button
+                  onClick={handleSimulateSandboxItn}
+                  disabled={simulatingItn}
+                  className="text-xs text-orange-400 hover:text-orange-300 underline font-semibold flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>
+                    {simulatingItn
+                      ? 'Processing signed sandbox ITN...'
+                      : 'Fast-Track Sandbox ITN Callback (Test Mode)'}
+                  </span>
+                </button>
+                <p className="text-[10px] text-zinc-500 text-center">
+                  Emulates the official PayFast server-to-server webhook callback for test verification.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-zinc-800">
