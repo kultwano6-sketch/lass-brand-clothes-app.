@@ -16,7 +16,9 @@ id = "b874fd0a49a849fb94922f46080e1509"
 
 # Public Non-Secret Environment Variables
 [vars]
-# In production set to "false" to connect to live PayFast (https://www.payfast.co.za)
+PAYFAST_MERCHANT_ID = "10056107"
+PAYFAST_MERCHANT_KEY = "83lc36ab316ei"
+# Set to "false" to connect to live PayFast (https://www.payfast.co.za)
 PAYFAST_SANDBOX = "true"
 ALLOW_SANDBOX_SIMULATION = "true"
 APP_URL = "https://lass-brand-clothes-app.harvestkelass.workers.dev"

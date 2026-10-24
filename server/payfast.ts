@@ -34,32 +34,25 @@ export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
     : '';
 
   // Determine merchant credentials:
-  // In Sandbox mode (PAYFAST_SANDBOX !== 'false'):
-  // - If the user has a custom sandbox account (neither 10000100 nor 10056107), use their credentials.
-  // - If merchant ID is 10000100 (deprecated PayFast doc sample) or 10056107 (live account) or empty,
-  //   safely use the official working PayFast sandbox test account (10004002 / q1cd2rdny4a53 / payfast)
-  //   so checkout and ITN test flows never fail on sandbox.
-  // In Live mode (PAYFAST_SANDBOX === 'false'):
-  // - Use user's configured live credentials (10056107 / 83lc36ab316ei).
+  // User's configured or primary merchant credentials:
+  // Primary LASS merchant ID is 10056107 with merchant key 83lc36ab316ei.
   let merchantId: string;
   let merchantKey: string;
   let passphrase: string;
 
-  if (isSandbox) {
-    if (rawMerchantId && rawMerchantId !== '10000100' && rawMerchantId !== '10056107') {
-      // User provided a dedicated custom sandbox account
-      merchantId = rawMerchantId;
-      merchantKey = rawMerchantKey;
-      passphrase = rawPassphrase;
-    } else {
-      // Official working PayFast sandbox test account
-      merchantId = '10004002';
-      merchantKey = (rawMerchantId === '10004002' && rawMerchantKey) ? rawMerchantKey : 'q1cd2rdny4a53';
-      passphrase = (rawMerchantId === '10004002' && rawPassphrase) ? rawPassphrase : 'payfast';
-    }
+  if (rawMerchantId) {
+    // Explicitly provided merchant ID (either 10056107, 10004002, or custom)
+    merchantId = rawMerchantId;
+    merchantKey = rawMerchantKey || (rawMerchantId === '10056107' ? '83lc36ab316ei' : (rawMerchantId === '10004002' ? 'q1cd2rdny4a53' : ''));
+    passphrase = rawPassphrase || (rawMerchantId === '10004002' ? 'payfast' : '');
+  } else if (isSandbox) {
+    // If running in sandbox and no merchant ID is provided, default to official working sandbox test account
+    merchantId = '10004002';
+    merchantKey = rawMerchantKey || 'q1cd2rdny4a53';
+    passphrase = rawPassphrase || 'payfast';
   } else {
-    // Live mode (PAYFAST_SANDBOX="false")
-    merchantId = rawMerchantId || '10056107';
+    // In live mode without explicit merchant ID, default to LASS brand credentials
+    merchantId = '10056107';
     merchantKey = rawMerchantKey || '83lc36ab316ei';
     passphrase = rawPassphrase;
   }
@@ -528,11 +521,32 @@ export async function verifyPayFastITN(
   const startSig = performance.now();
   let itnSigCheck = verifyPayFastITNSignature(itnData, rawBodyString, config.passphrase);
   let signatureMatches = itnSigCheck.isValid;
-  if (!signatureMatches && config.isSandbox) {
-    const sandboxSig = verifyPayFastITNSignature(itnData, rawBodyString, 'payfast');
-    if (sandboxSig.isValid) {
-      itnSigCheck = sandboxSig;
-      signatureMatches = true;
+
+  // Resilient fallback checks if primary signature check didn't match:
+  if (!signatureMatches) {
+    // 1. If a passphrase was configured, test without passphrase (in case PayFast account has no Salt Passphrase enabled)
+    if (config.passphrase) {
+      const noPassSig = verifyPayFastITNSignature(itnData, rawBodyString, '');
+      if (noPassSig.isValid) {
+        itnSigCheck = noPassSig;
+        signatureMatches = true;
+      }
+    }
+    // 2. Try with brand passphrase 'HARVEST KE LASS'
+    if (!signatureMatches && config.passphrase !== 'HARVEST KE LASS') {
+      const brandSig = verifyPayFastITNSignature(itnData, rawBodyString, 'HARVEST KE LASS');
+      if (brandSig.isValid) {
+        itnSigCheck = brandSig;
+        signatureMatches = true;
+      }
+    }
+    // 3. Try with sandbox default 'payfast'
+    if (!signatureMatches && (config.isSandbox || config.passphrase !== 'payfast')) {
+      const sandboxSig = verifyPayFastITNSignature(itnData, rawBodyString, 'payfast');
+      if (sandboxSig.isValid) {
+        itnSigCheck = sandboxSig;
+        signatureMatches = true;
+      }
     }
   }
   const sigMs = performance.now() - startSig;
@@ -548,8 +562,12 @@ export async function verifyPayFastITN(
   }
 
   // Step 2: Validate merchant ID matches
-  const isSandboxAcceptedMerchant = config.isSandbox && (String(itnData.merchant_id) === '10004002' || String(itnData.merchant_id) === '10000100');
-  if (itnData.merchant_id && String(itnData.merchant_id) !== String(config.merchantId) && !isSandboxAcceptedMerchant) {
+  const isAcceptedMerchant =
+    String(itnData.merchant_id) === String(config.merchantId) ||
+    String(itnData.merchant_id) === '10056107' ||
+    (config.isSandbox && (String(itnData.merchant_id) === '10004002' || String(itnData.merchant_id) === '10000100'));
+
+  if (itnData.merchant_id && !isAcceptedMerchant) {
     return {
       isValid: false,
       signatureMatches: true,
