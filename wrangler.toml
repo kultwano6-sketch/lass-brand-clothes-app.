@@ -21,8 +21,4 @@ PAYFAST_SANDBOX = "true"
 # Security requirement: simulation strictly disabled by default
 ALLOW_SANDBOX_SIMULATION = "false"
 APP_URL = "https://lass-brand-clothes-app.harvestkelass.workers.dev"
-
-# Required Secrets declared for Cloudflare sync validation
-# Values are stored encrypted in Cloudflare Worker Secrets (never committed to Git)
-[secrets]
-required = ["PAYFAST_PASSPHRASE"]
+# In Cloudflare, secrets like PAYFAST_PASSPHRASE are managed via the Cloudflare dashboard or wrangler secret put.
