@@ -304,7 +304,7 @@ async function runTests() {
     passed++;
   }
 
-  // Test 10: Official default PayFast Sandbox test credentials when PAYFAST_MERCHANT_ID is omitted
+  // Test 10: Default PayFast Sandbox credentials when PAYFAST_MERCHANT_ID is omitted use LASS sandbox profile
   {
     const defaultEnv = {
       PAYFAST_SANDBOX: 'true',
@@ -327,12 +327,12 @@ async function runTests() {
     const res = await worker.fetch(req, defaultEnv, {});
     const data = await res.json();
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(data.payfastData.merchant_id, '10004002');
-    assert.strictEqual(data.payfastData.merchant_key, 'q1cd2rdny4a53');
-    // Default sandbox uses 'payfast' passphrase
-    const expectedSig = generatePayFastSignature(data.payfastData, 'payfast');
+    assert.strictEqual(data.payfastData.merchant_id, '10056107');
+    assert.strictEqual(data.payfastData.merchant_key, '83lc36ab316ei');
+    // Default sandbox uses 'HARVEST KE LASS' passphrase
+    const expectedSig = generatePayFastSignature(data.payfastData, 'HARVEST KE LASS');
     assert.strictEqual(data.payfastData.signature, expectedSig);
-    console.log('✓ Test 10 Passed: Default sandbox checkout correctly uses official test account (10004002 / q1cd2rdny4a53 / payfast)');
+    console.log('✓ Test 10 Passed: Default sandbox checkout correctly uses LASS sandbox account (10056107 / 83lc36ab316ei / HARVEST KE LASS)');
     passed++;
   }
 
@@ -764,7 +764,46 @@ async function runTests() {
     passed++;
   }
 
-  console.log(`\nAll ${passed}/28 automated PayFast & Worker tests PASSED successfully!`);
+  // Test 28: Resilient ITN handling creates and marks order paid even if not pre-stored in KV
+  {
+    const missingOrderNum = `LASS-SYNTHETIC-${Date.now()}`;
+    const itnPayload = {
+      m_payment_id: missingOrderNum,
+      amount_gross: '280.00',
+      merchant_id: '10056107',
+      payment_status: 'COMPLETE',
+      name_first: 'Sipho',
+      name_last: 'Khumalo',
+      cell_number: '0829876543',
+      item_name: 'LASS Drop 2026',
+    };
+    itnPayload.signature = generatePayFastITNSignature(itnPayload, 'HARVEST KE LASS');
+
+    const itnBody = Object.entries(itnPayload)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const itnReq = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: itnBody,
+    });
+
+    const itnRes = await worker.fetch(itnReq, baseEnv, {});
+    assert.strictEqual(itnRes.status, 200);
+    const itnText = await itnRes.text();
+    assert.strictEqual(itnText, 'ITN Processed Successfully');
+
+    // Order should now exist in store and be marked paid
+    const savedOrder = await mockKV.get(`order:${missingOrderNum}`, 'json');
+    assert.ok(savedOrder);
+    assert.strictEqual(savedOrder.paymentStatus, 'paid');
+    assert.strictEqual(savedOrder.estimatedTotal, 280);
+    console.log('✓ Test 28 Passed: Resilient ITN gracefully saves and confirms unindexed order with 200 OK');
+    passed++;
+  }
+
+  console.log(`\nAll ${passed}/29 automated PayFast & Worker tests PASSED successfully!`);
 }
 
 runTests().catch((err) => {

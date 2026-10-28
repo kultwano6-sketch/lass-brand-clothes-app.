@@ -261,14 +261,7 @@ export default {
           return textResponse('Missing m_payment_id', 400);
         }
 
-        const order = await orderStore.get(orderNumber);
-        if (!order) {
-          const totalMs = performance.now() - itnStart;
-          console.warn(`[PayFast ITN Timing] order=${orderNumber} status=NOT_FOUND totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Order_not_found`);
-          return textResponse('Order not found', 400);
-        }
-
-        // Fast synchronous signature validation using dedicated ITN verifier
+        // 1. Fast synchronous signature validation using dedicated ITN verifier
         const config = getPayFastConfig(effectiveEnv);
         const startSig = performance.now();
         let itnSigCheck = verifyPayFastITNSignature(itnData, rawBody, config.passphrase);
@@ -309,6 +302,7 @@ export default {
           return textResponse('Signature mismatch', 400);
         }
 
+        // 2. Validate merchant ID
         const isAcceptedMerchant =
           String(itnData.merchant_id) === String(config.merchantId) ||
           String(itnData.merchant_id) === '10056107' ||
@@ -320,7 +314,53 @@ export default {
           return textResponse('Merchant ID mismatch', 400);
         }
 
+        // 3. Retrieve order from database (or create resilient record if cross-environment checkout)
+        let order = await orderStore.get(orderNumber);
         const amountGross = parseFloat(itnData.amount_gross || '0');
+
+        if (!order) {
+          // If order is not found in KV (e.g. cross-environment checkout or KV replication lag),
+          // construct and persist the verified order record from authenticated PayFast ITN payload
+          const syntheticOrder: SubmittedOrder = {
+            orderNumber,
+            date: new Date().toISOString(),
+            customer: {
+              fullName: `${itnData.name_first || ''} ${itnData.name_last || ''}`.trim() || 'LASS Customer',
+              phoneOrWhatsApp: itnData.cell_number || '',
+              email: itnData.email_address || '',
+              deliveryMethod: (itnData.custom_str1 as any) || 'paxi-standard',
+              pepStoreBranch: itnData.custom_str2 || '',
+              deliveryAddress: itnData.custom_str2 || '',
+            },
+            items: [
+              {
+                productId: 'payfast-verified-item',
+                name: itnData.item_name || `LASS Order #${orderNumber}`,
+                selectedSize: 'Standard',
+                selectedColour: 'Standard',
+                unitPrice: amountGross,
+                quantity: 1,
+                totalPrice: amountGross,
+              },
+            ],
+            subtotal: amountGross,
+            deliveryFee: 0,
+            estimatedTotal: amountGross,
+            whatsappMessageText: `Order #${orderNumber}`,
+            whatsappUrl: '',
+            status: 'payment_confirmed',
+            paymentStatus: 'paid',
+            paymentMethod: 'payfast',
+            transactionId: itnData.pf_payment_id || `PF-${Date.now()}`,
+            paidAt: new Date().toISOString(),
+            statusNotes: `PayFast Payment Confirmed (Ref: ${itnData.pf_payment_id || 'N/A'}). Gross: R${amountGross.toFixed(2)}.`,
+            payfastData: itnData,
+          };
+          await orderStore.save(syntheticOrder);
+          console.log(`[PayFast ITN] Order ${orderNumber} created and marked paid from authenticated ITN`);
+          return textResponse('ITN Processed Successfully', 200);
+        }
+
         if (Math.abs(amountGross - order.estimatedTotal) > 0.05) {
           const totalMs = performance.now() - itnStart;
           console.warn(`[PayFast ITN Timing] order=${orderNumber} status=AMOUNT_MISMATCH sigMs=${sigMs.toFixed(2)} totalMs=${totalMs.toFixed(2)} httpStatus=400 error=Amount_mismatch`);

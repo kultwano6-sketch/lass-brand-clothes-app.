@@ -41,20 +41,20 @@ export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
   let passphrase: string;
 
   if (rawMerchantId) {
-    // Explicitly provided merchant ID (either 10056107, 10004002, or custom)
+    // Explicitly provided merchant ID (10056107, 10004002, or custom)
     merchantId = rawMerchantId;
     merchantKey = rawMerchantKey || (rawMerchantId === '10056107' ? '83lc36ab316ei' : (rawMerchantId === '10004002' ? 'q1cd2rdny4a53' : ''));
-    passphrase = rawPassphrase || (rawMerchantId === '10004002' ? 'payfast' : '');
+    passphrase = rawPassphrase || (rawMerchantId === '10056107' ? 'HARVEST KE LASS' : (rawMerchantId === '10004002' ? 'payfast' : ''));
   } else if (isSandbox) {
-    // If running in sandbox and no merchant ID is provided, default to official working sandbox test account
-    merchantId = '10004002';
-    merchantKey = rawMerchantKey || 'q1cd2rdny4a53';
-    passphrase = rawPassphrase || 'payfast';
-  } else {
-    // In live mode without explicit merchant ID, default to LASS brand credentials
+    // In sandbox mode default to LASS sandbox credentials (10056107 / 83lc36ab316ei / HARVEST KE LASS)
     merchantId = '10056107';
     merchantKey = rawMerchantKey || '83lc36ab316ei';
-    passphrase = rawPassphrase;
+    passphrase = rawPassphrase || 'HARVEST KE LASS';
+  } else {
+    // In live mode default to LASS brand credentials
+    merchantId = '10056107';
+    merchantKey = rawMerchantKey || '83lc36ab316ei';
+    passphrase = rawPassphrase || 'HARVEST KE LASS';
   }
 
   const appUrl = e.APP_URL || e.PUBLIC_APP_URL || 'http://localhost:3000';
@@ -227,7 +227,12 @@ export function createHostedCheckoutPayload(
 
   // notify_url MUST be a publicly accessible HTTPS endpoint for PayFast server-to-server callbacks
   const publicWorkerNotifyUrl = 'https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/notify';
-  const isLocalAppUrl = !config.appUrl || config.appUrl.includes('localhost') || config.appUrl.includes('127.0.0.1') || config.appUrl.includes(':3000');
+  const isLocalAppUrl =
+    !config.appUrl ||
+    config.appUrl.includes('localhost') ||
+    config.appUrl.includes('127.0.0.1') ||
+    config.appUrl.includes(':3000') ||
+    config.appUrl.includes('.run.app');
   payload.notify_url = isLocalAppUrl ? publicWorkerNotifyUrl : `${config.appUrl}/api/payfast/notify`;
 
   // 3. Buyer Details (in exact PayFast sequence, only non-blank values)

@@ -12,9 +12,28 @@ import {
 // Load environment variables
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// AI Studio dev server runs on port 3000 and NGINX runs on port 8080.
+// Do not default to process.env.PORT if it is 8080 to prevent EADDRINUSE conflict with NGINX.
+function resolvePort(): number {
+  const portArgIndex = process.argv.indexOf('--port');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const parsed = parseInt(process.argv[portArgIndex + 1], 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  if (process.env.DEFAULT_APP_PORT) {
+    const parsed = parseInt(process.env.DEFAULT_APP_PORT, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  if (process.env.PORT && process.env.PORT !== '8080') {
+    const parsed = parseInt(process.env.PORT, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 3000;
+}
+
+const PORT = resolvePort();
 const isProduction = process.env.NODE_ENV === 'production';
+const app = express();
 
 // Body parsers
 // Note: PayFast ITN sends application/x-www-form-urlencoded
@@ -236,15 +255,7 @@ app.post('/api/payfast/notify', async (req: Request, res: Response) => {
       return res.status(400).send('Missing m_payment_id');
     }
 
-    const order = await orderStore.get(orderNumber);
-    if (!order) {
-      console.error(
-        `[PayFast ITN Error]: Order ${orderNumber} not found in database`
-      );
-      return res.status(400).send('Order not found');
-    }
-
-    // Verify ITN signature and server-to-server confirmation
+    // Verify ITN signature and server-to-server confirmation first
     const verification = await verifyPayFastITN(itnData);
     if (!verification.isValid) {
       console.error(
@@ -254,8 +265,51 @@ app.post('/api/payfast/notify', async (req: Request, res: Response) => {
       return res.status(400).send('Signature mismatch');
     }
 
-    // Verify amount matches expected order total (protect against amount tampering)
+    let order = await orderStore.get(orderNumber);
     const amountGross = parseFloat(itnData.amount_gross || '0');
+
+    if (!order) {
+      console.warn(`[PayFast ITN Notice]: Order ${orderNumber} not found locally; creating verified record from ITN.`);
+      order = {
+        orderNumber,
+        date: new Date().toISOString(),
+        customer: {
+          fullName: `${itnData.name_first || ''} ${itnData.name_last || ''}`.trim() || 'LASS Customer',
+          phoneOrWhatsApp: itnData.cell_number || '',
+          email: itnData.email_address || '',
+          deliveryMethod: (itnData.custom_str1 as any) || 'paxi-standard',
+          pepStoreBranch: itnData.custom_str2 || '',
+          deliveryAddress: itnData.custom_str2 || '',
+        },
+        items: [
+          {
+            productId: 'payfast-order',
+            name: itnData.item_name || `LASS Order #${orderNumber}`,
+            selectedSize: 'Standard',
+            selectedColour: 'Standard',
+            unitPrice: amountGross,
+            quantity: 1,
+            totalPrice: amountGross,
+          },
+        ],
+        subtotal: amountGross,
+        deliveryFee: 0,
+        estimatedTotal: amountGross,
+        whatsappMessageText: `Order #${orderNumber}`,
+        whatsappUrl: '',
+        status: 'payment_confirmed',
+        paymentStatus: 'paid',
+        paymentMethod: 'payfast',
+        transactionId: itnData.pf_payment_id || `PF-${Date.now()}`,
+        paidAt: new Date().toISOString(),
+        statusNotes: `PayFast Payment Confirmed (Ref: ${itnData.pf_payment_id || 'N/A'}). Gross: R${amountGross.toFixed(2)}.`,
+        payfastData: itnData,
+      };
+      await orderStore.save(order);
+      return res.status(200).send('ITN Processed Successfully');
+    }
+
+    // Verify amount matches expected order total (protect against amount tampering)
     if (Math.abs(amountGross - order.estimatedTotal) > 0.05) {
       console.error(
         `[PayFast ITN Security Alert]: Amount mismatch on ${orderNumber}. Expected: R${order.estimatedTotal}, Received: R${amountGross}`
@@ -300,7 +354,34 @@ app.post('/api/payfast/notify', async (req: Request, res: Response) => {
  */
 app.get('/api/payfast/order-status/:orderId', async (req: Request, res: Response) => {
   const orderId = req.params.orderId;
-  const order = await orderStore.get(orderId);
+  let order = await orderStore.get(orderId);
+
+  // If local order is pending or missing, check if public Cloudflare Worker received the ITN
+  if (!order || order.paymentStatus !== 'paid') {
+    try {
+      const workerUrl = `https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/order-status/${encodeURIComponent(orderId)}`;
+      const remoteRes = await fetch(workerUrl, { headers: { Accept: 'application/json' } });
+      if (remoteRes.ok) {
+        const remoteData: any = await remoteRes.json();
+        if (remoteData && remoteData.success && remoteData.paymentStatus === 'paid') {
+          if (order) {
+            order.paymentStatus = 'paid';
+            order.status = remoteData.status || 'payment_confirmed';
+            order.transactionId = remoteData.transactionId || order.transactionId;
+            order.paidAt = remoteData.paidAt || new Date().toISOString();
+            order.paxiTrackingCode = remoteData.paxiTrackingCode || order.paxiTrackingCode;
+            order.statusNotes = remoteData.statusNotes || 'Confirmed via Cloudflare Worker ITN';
+            await orderStore.save(order);
+          } else {
+            order = remoteData as SubmittedOrder;
+            await orderStore.save(order);
+          }
+        }
+      }
+    } catch {
+      // Ignore remote lookup failure and fallback to local state
+    }
+  }
 
   if (!order) {
     return res.status(404).json({
@@ -440,12 +521,24 @@ async function setupFrontend() {
   }
 }
 
-setupFrontend().then(() => {
-  app.listen(PORT, () => {
-    const config = getPayFastConfig();
-    console.log(`LASS Brand Store running on http://localhost:${PORT}`);
-    console.log(`PayFast Mode: ${config.isSandbox ? 'SANDBOX (Test Mode)' : 'PRODUCTION'}`);
-    console.log(`Merchant ID: ${config.merchantId}`);
-    console.log(`Process URL: ${config.processUrl}`);
+setupFrontend()
+  .then(() => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      const config = getPayFastConfig();
+      console.log(`LASS Brand Store running on http://localhost:${PORT}`);
+      console.log(`PayFast Mode: ${config.isSandbox ? 'SANDBOX (Test Mode)' : 'PRODUCTION'}`);
+      console.log(`Merchant ID: ${config.merchantId}`);
+      console.log(`Process URL: ${config.processUrl}`);
+    });
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`Port ${PORT} is in use; dev server or parent process already bound.`);
+      } else {
+        console.error('Express server listen error:', err);
+      }
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to setup frontend middleware:', err);
   });
-});
