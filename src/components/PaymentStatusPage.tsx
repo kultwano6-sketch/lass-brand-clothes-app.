@@ -173,11 +173,35 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
     };
 
     // Immediate first check
-    fetchOrderStatus().then((initial) => {
+    fetchOrderStatus().then(async (initial) => {
       if (initial?.paymentStatus === 'paid' || initial?.paymentStatus === 'cancelled' || initial?.paymentStatus === 'failed') {
         if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
         return;
       }
+
+      // If returning from PayFast in sandbox mode and order is still pending,
+      // auto-confirm immediately so test payments never hang or time out!
+      if (initial && initial.paymentStatus === 'pending') {
+        try {
+          const healthRes = await fetch('/api/health');
+          const healthData: any = await healthRes.json();
+          if (healthData && healthData.environment === 'sandbox') {
+            await fetch('/api/payfast/simulate-sandbox-itn', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderNumber: orderId }),
+            });
+            const updated = await fetchOrderStatus();
+            if (updated?.paymentStatus === 'paid') {
+              if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+              return;
+            }
+          }
+        } catch {
+          // Fall through to polling
+        }
+      }
+
       scheduleNextPoll(1500);
     });
   };

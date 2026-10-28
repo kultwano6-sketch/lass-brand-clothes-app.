@@ -254,6 +254,21 @@ export default {
           itnData[k] = v;
         }
 
+        // Record immediate arrival log into KV for diagnostic traceability
+        if (effectiveEnv.ORDERS_KV) {
+          try {
+            await effectiveEnv.ORDERS_KV.put(
+              'itn_log:latest',
+              JSON.stringify({
+                timestamp: new Date().toISOString(),
+                rawBody,
+                itnData,
+              }),
+              { expirationTtl: 86400 * 7 }
+            );
+          } catch {}
+        }
+
         const orderNumber = itnData.m_payment_id;
         if (!orderNumber) {
           const totalMs = performance.now() - itnStart;
