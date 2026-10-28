@@ -504,7 +504,26 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
   }
 
   // 4. VERIFIED SUCCESSFUL PAYMENT RECEIPT VIEW
-  const orderWhatsAppText = `*LASS BRAND CLOTHES — ONLINE PAYMENT CONFIRMED*\n\n• Order Ref: #${order.orderNumber}\n• Customer: ${order.customer.fullName}\n• Cell/WhatsApp: ${order.customer.phoneOrWhatsApp}\n• PayFast Ref: ${order.transactionId || 'PAID'}\n• Total Paid: ${formatZAR(order.estimatedTotal)}\n• Delivery: ${order.customer.deliveryMethod.toUpperCase()}\n• Destination: ${order.customer.pepStoreBranch || order.customer.deliveryAddress}\n${order.paxiTrackingCode ? `• PAXI Tracking: ${order.paxiTrackingCode}\n` : ''}\nThank you! Please prepare parcel for dispatch.`;
+  if (!order) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin mx-auto" />
+        <p className="text-zinc-400 text-sm">Loading order details...</p>
+      </div>
+    );
+  }
+
+  const safeCustomer = order.customer || {
+    fullName: 'LASS Customer',
+    phoneOrWhatsApp: '',
+    email: '',
+    deliveryMethod: 'collection',
+    pepStoreBranch: '',
+    deliveryAddress: '',
+  };
+  const deliveryMethodStr = (safeCustomer.deliveryMethod || 'collection').toUpperCase();
+
+  const orderWhatsAppText = `*LASS BRAND CLOTHES — ONLINE PAYMENT CONFIRMED*\n\n• Order Ref: #${order.orderNumber || orderId}\n• Customer: ${safeCustomer.fullName}\n• Cell/WhatsApp: ${safeCustomer.phoneOrWhatsApp}\n• PayFast Ref: ${order.transactionId || 'PAID'}\n• Total Paid: ${formatZAR(order.estimatedTotal || 0)}\n• Delivery: ${deliveryMethodStr}\n• Destination: ${safeCustomer.pepStoreBranch || safeCustomer.deliveryAddress || 'N/A'}\n${order.paxiTrackingCode ? `• PAXI Tracking: ${order.paxiTrackingCode}\n` : ''}\nThank you! Please prepare parcel for dispatch.`;
   const whatsappUrl = buildWhatsAppLink(brandConfig.ownerWhatsApp, orderWhatsAppText);
 
   return (
@@ -578,25 +597,25 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-zinc-300">
             <div>
               <span className="text-zinc-500 block text-[11px]">Recipient:</span>
-              <strong className="text-white">{order.customer.fullName}</strong>
-              <div className="text-zinc-400 text-[11px]">{order.customer.phoneOrWhatsApp}</div>
-              {order.customer.email && (
-                <div className="text-zinc-400 text-[11px]">{order.customer.email}</div>
+              <strong className="text-white">{safeCustomer.fullName}</strong>
+              <div className="text-zinc-400 text-[11px]">{safeCustomer.phoneOrWhatsApp}</div>
+              {safeCustomer.email && (
+                <div className="text-zinc-400 text-[11px]">{safeCustomer.email}</div>
               )}
             </div>
 
             <div>
               <span className="text-zinc-500 block text-[11px]">Delivery Option:</span>
               <strong className="text-white">
-                {order.customer.deliveryMethod === 'paxi-express'
+                {safeCustomer.deliveryMethod === 'paxi-express'
                   ? 'PAXI Express PEP Store (3-5 business days)'
-                  : order.customer.deliveryMethod === 'collection'
+                  : safeCustomer.deliveryMethod === 'collection'
                   ? 'Local Pick-Up / Studio Collection'
                   : 'PAXI Standard PEP Store (5-10 business days)'}
               </strong>
-              {order.customer.pepStoreBranch && (
+              {safeCustomer.pepStoreBranch && (
                 <div className="text-emerald-400 text-[11px] mt-0.5">
-                  Point: {order.customer.pepStoreBranch}
+                  Point: {safeCustomer.pepStoreBranch}
                 </div>
               )}
             </div>

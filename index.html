@@ -34,6 +34,22 @@
   </head>
   <body class="bg-zinc-950 text-white antialiased min-h-screen selection:bg-orange-500 selection:text-white">
     <div id="root"></div>
+    <script>
+      // Chunk reload recovery: if browser tries to load old cached chunk that was refreshed, reload once
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.indexOf('dynamically imported module') !== -1 || e.message.indexOf('Loading chunk') !== -1 || e.message.indexOf('Failed to fetch') !== -1)) {
+          if (!sessionStorage.getItem('lass_chunk_retry')) {
+            sessionStorage.setItem('lass_chunk_retry', '1');
+            if ('caches' in window) {
+              caches.keys().then(function(keys) {
+                keys.forEach(function(k) { caches.delete(k); });
+              });
+            }
+            window.location.reload();
+          }
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Service worker management: only cache in production; unregister in preview to prevent stale chunk caching
