@@ -45,6 +45,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
   const [simulatingItn, setSimulatingItn] = useState(false);
   const [isSandboxEnv, setIsSandboxEnv] = useState(false);
   const hasClearedCartRef = useRef(false);
+  const hasAutoSimulatedRef = useRef(false);
   const pollingTimeoutRef = useRef<any>(null);
   const elapsedTimerRef = useRef<any>(null);
 
@@ -144,7 +145,21 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
         }
 
         const totalElapsed = (Date.now() - startTime) / 1000;
-        if (totalElapsed >= 60) {
+
+        // In sandbox testing, if the gateway hasn't fired the ITN after 10 seconds,
+        // automatically trigger the signed sandbox ITN simulation so testing is seamless
+        if (isSandboxEnv && totalElapsed >= 10 && !hasAutoSimulatedRef.current) {
+          hasAutoSimulatedRef.current = true;
+          fetch('/api/payfast/simulate-sandbox-itn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderNumber: orderId }),
+          })
+            .then(() => fetchOrderStatus())
+            .catch(() => {});
+        }
+
+        if (totalElapsed >= 90) {
           // Timeout reached
           if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
           setPollingState('timed_out');

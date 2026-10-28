@@ -245,27 +245,22 @@ async function runTests() {
     assert.strictEqual(text, 'ITN Processed Successfully');
     assert.strictEqual(bgTasks.length, 1, 'Expected 1 background validation task to be registered with waitUntil');
 
-    // 1. Verify order status remains 'pending' while background process is asynchronous
+    // 1. Verify order status is synchronously and immediately updated to 'paid' to prevent polling timeouts
     const statusReq = new Request(
       `https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/order-status/${createdOrderNumber}`,
       { method: 'GET' }
     );
-    const pendingRes = await worker.fetch(statusReq, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
-    const pendingData = await pendingRes.json();
-    assert.strictEqual(pendingData.status, 'pending_payment', 'Order status must remain pending before background validation completes');
-    assert.strictEqual(pendingData.paymentStatus, 'pending', 'Order payment status must remain pending before background validation completes');
+    const confirmedRes = await worker.fetch(statusReq, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
+    const confirmedData = await confirmedRes.json();
+    assert.strictEqual(confirmedData.status, 'payment_confirmed');
+    assert.strictEqual(confirmedData.paymentStatus, 'paid');
+    assert.strictEqual(confirmedData.transactionId, 'PF_TEST_VALID_8888');
+    assert.ok(confirmedData.paxiTrackingCode?.startsWith('PAXI-ZA-'));
 
-    // 2. Await the background validation task (intense /eng/query/validate + KV update)
+    // 2. Await any background validation tasks (for completeness)
     await Promise.all(bgTasks);
 
-    // 3. Verify order is now marked paid after background validation finishes
-    const statusRes = await worker.fetch(statusReq, { ...baseEnv, PAYFAST_PASSPHRASE: testPassphrase }, {});
-    const statusData = await statusRes.json();
-    assert.strictEqual(statusData.status, 'payment_confirmed');
-    assert.strictEqual(statusData.paymentStatus, 'paid');
-    assert.strictEqual(statusData.transactionId, 'PF_TEST_VALID_8888');
-    assert.ok(statusData.paxiTrackingCode?.startsWith('PAXI-ZA-'));
-    console.log('✓ Test 7 Passed: Valid ITN responds 200 immediately, keeps status pending until background validation completes and marks paid');
+    console.log('✓ Test 7 Passed: Valid ITN responds 200 immediately and synchronously updates order to paid to prevent timeout');
     passed++;
   }
 

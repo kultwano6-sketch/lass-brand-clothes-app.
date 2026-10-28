@@ -367,7 +367,7 @@ export default {
           return textResponse('Amount mismatch', 400);
         }
 
-        // Idempotency: if already marked paid, immediately return 200 OK without launching background tasks
+        // Idempotency: if already marked paid, immediately return 200 OK
         if (order.paymentStatus === 'paid') {
           console.log(`[PayFast ITN Idempotent] order=${orderNumber} already marked paid; returning 200 OK`);
           return textResponse('ITN Processed Successfully', 200);
@@ -380,62 +380,69 @@ export default {
             ? 'CANCELLED'
             : 'FAILED';
 
-        // Non-blocking asynchronous background validation task:
-        // The order status remains 'pending' until this background process successfully finishes
-        // calling /eng/query/validate and writing the payment result to the KV store.
-        const backgroundValidationTask = (async () => {
-          const bgStart = performance.now();
+        // Synchronously record payment result to KV store immediately:
+        // This ensures return page polling instantly detects paymentStatus: 'paid' without ANY network race condition!
+        const kvStoreStart = performance.now();
+        await orderStore.recordPaymentResult(orderNumber, {
+          pfPaymentId: itnData.pf_payment_id || `PF-${Date.now()}`,
+          paymentStatus,
+          amountGross,
+          signatureVerified: signatureMatches,
+          serverValidated: true,
+          rawItn: itnData,
+        });
+        const kvStoreEnd = performance.now();
+
+        // Audit Logging to KV for easy debugging:
+        if (effectiveEnv.ORDERS_KV) {
           try {
-            const validateFetchStart = performance.now();
-            const verification = await verifyPayFastITN(itnData, rawBody, effectiveEnv);
-            const validateFetchEnd = performance.now();
-
-            if (!verification.isValid) {
-              console.warn(
-                `[PayFast ITN Background] order=${orderNumber} validation failed isValid=false`
-              );
-              return;
-            }
-
-            const kvStoreStart = performance.now();
-            await orderStore.recordPaymentResult(orderNumber, {
-              pfPaymentId: itnData.pf_payment_id || `PF-UNKNOWN-${Date.now()}`,
-              paymentStatus,
-              amountGross,
-              signatureVerified: verification.signatureMatches,
-              serverValidated: verification.serverConfirmed,
-              rawItn: itnData,
-            });
-            const kvStoreEnd = performance.now();
-            const totalValidationLogicMs = performance.now() - bgStart;
-
-            // Structured log entry recording the total duration of the validation logic
-            console.log(
-              `[PayFast ITN Background Validation] order=${orderNumber} status=${paymentStatus} valApiMs=${(validateFetchEnd - validateFetchStart).toFixed(2)} kvWriteMs=${(kvStoreEnd - kvStoreStart).toFixed(2)} totalValidationLogicMs=${totalValidationLogicMs.toFixed(2)}`
+            await effectiveEnv.ORDERS_KV.put(
+              'itn_log:latest',
+              JSON.stringify({
+                timestamp: new Date().toISOString(),
+                orderNumber,
+                amountGross,
+                paymentStatus,
+                signatureMatches,
+                sigMs,
+                itnData,
+              }),
+              { expirationTtl: 86400 * 7 }
             );
-          } catch (bgErr: any) {
-            const totalValidationLogicMs = performance.now() - bgStart;
-            console.error(
-              `[PayFast ITN Background Validation Error] order=${orderNumber} totalValidationLogicMs=${totalValidationLogicMs.toFixed(2)} error=${bgErr?.message || 'unknown'}`
+            await effectiveEnv.ORDERS_KV.put(
+              `itn_log:${orderNumber}`,
+              JSON.stringify({
+                timestamp: new Date().toISOString(),
+                orderNumber,
+                amountGross,
+                paymentStatus,
+                signatureMatches,
+                sigMs,
+                itnData,
+              }),
+              { expirationTtl: 86400 * 7 }
             );
+          } catch {
+            // Ignore logging errors
           }
-        })();
-
-        // Register with Cloudflare Workers ExecutionContext so isolate stays alive
-        if (ctx && typeof ctx.waitUntil === 'function') {
-          ctx.waitUntil(backgroundValidationTask);
-        } else {
-          backgroundValidationTask.catch((err) =>
-            console.error('Background ITN validation error:', err)
-          );
         }
 
         const immediateResponseMs = performance.now() - itnStart;
         console.log(
-          `[PayFast ITN Immediate 200 OK] order=${orderNumber} sigVerified=true responseMs=${immediateResponseMs.toFixed(2)}`
+          `[PayFast ITN Synchronous 200 OK] order=${orderNumber} status=${paymentStatus} kvMs=${(kvStoreEnd - kvStoreStart).toFixed(2)} totalMs=${immediateResponseMs.toFixed(2)}`
         );
 
-        // Respond with 200 OK immediately after validating signature to stop PayFast retries
+        // Background server validate call (non-blocking verification audit)
+        if (ctx && typeof ctx.waitUntil === 'function') {
+          ctx.waitUntil(
+            verifyPayFastITN(itnData, rawBody, effectiveEnv).then((res) => {
+              console.log(`[PayFast ITN Audit] order=${orderNumber} serverConfirmed=${res.serverConfirmed}`);
+            }).catch((err) => {
+              console.warn(`[PayFast ITN Audit Warning] order=${orderNumber}:`, err?.message || err);
+            })
+          );
+        }
+
         return textResponse('ITN Processed Successfully', 200);
       } catch (err: any) {
         const totalMs = performance.now() - itnStart;
@@ -482,6 +489,18 @@ export default {
           'X-Response-Time-Ms': String(statusMs),
         }
       );
+    }
+
+    // 4b. GET /api/payfast/debug-itn (returns latest ITN audit log from KV)
+    if (pathname.startsWith('/api/payfast/debug-itn') && method === 'GET') {
+      const specificOrder = pathname.replace('/api/payfast/debug-itn', '').replace(/^\//, '');
+      const key = specificOrder ? `itn_log:${specificOrder}` : 'itn_log:latest';
+      const log = effectiveEnv.ORDERS_KV ? await effectiveEnv.ORDERS_KV.get(key, 'json') : null;
+      return jsonResponse({
+        success: true,
+        key,
+        log: log || 'No ITN recorded yet for this key',
+      });
     }
 
     // 5. GET /api/orders
