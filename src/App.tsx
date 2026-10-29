@@ -102,7 +102,12 @@ function MainShopContent() {
     if (typeof window === 'undefined') return null;
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
-    const orderId = params.get('orderId') || '';
+    const orderId =
+      params.get('orderId') ||
+      params.get('m_payment_id') ||
+      params.get('order_id') ||
+      params.get('reference') ||
+      '';
     if (path.includes('/payment/return') || params.get('payment') === 'return') {
       return { mode: 'return', orderId };
     }
