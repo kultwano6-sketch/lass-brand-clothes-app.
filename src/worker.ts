@@ -177,7 +177,7 @@ export default {
         const estimatedTotal = subtotal + deliveryFee;
 
         const orderNumber =
-          customOrderRef && /^LASS-\d{4}$/.test(customOrderRef)
+          customOrderRef && /^LASS-[A-Za-z0-9_-]{3,24}$/.test(customOrderRef)
             ? customOrderRef
             : `LASS-${Math.floor(1000 + Math.random() * 9000)}`;
 
