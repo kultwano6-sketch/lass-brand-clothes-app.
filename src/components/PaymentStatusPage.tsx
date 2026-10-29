@@ -738,8 +738,19 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 sm:py-16">
         <div className="bg-zinc-950 border border-blue-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-blue-950/20 text-center space-y-6 animate-in fade-in duration-300">
-          <div className="w-16 h-16 rounded-full bg-blue-500/15 border border-blue-500/40 flex items-center justify-center mx-auto text-blue-400 shadow-lg shadow-blue-500/20">
-            <RefreshCw className={`w-8 h-8 ${isVerifying ? 'animate-spin' : ''}`} />
+          {/* Subtle pulse animation indicating active communication with payment gateway */}
+          <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+            <span
+              className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-25"
+              style={{ animationDuration: '3s' }}
+            />
+            <span className="absolute inset-1.5 rounded-full bg-blue-500/15 animate-pulse" />
+            <div className="relative w-16 h-16 rounded-full bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-500/30 animate-pulse">
+              <RefreshCw
+                className={`w-8 h-8 text-blue-400 ${isVerifying ? 'animate-spin' : 'animate-spin'}`}
+                style={{ animationDuration: '2.5s' }}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
