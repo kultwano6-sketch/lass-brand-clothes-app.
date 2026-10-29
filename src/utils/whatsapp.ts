@@ -17,8 +17,9 @@ export function normalizeWhatsAppNumber(rawNumber: string): string {
   return digitsOnly || '27664412203';
 }
 
-export function formatZAR(amount: number): string {
-  return `R${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
+export function formatZAR(amount?: number | null): string {
+  const num = typeof amount === 'number' && !isNaN(amount) ? amount : Number(amount) || 0;
+  return `R${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
 }
 
 export function generateOrderReference(): string {

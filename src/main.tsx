@@ -41,6 +41,11 @@ class RootErrorBoundary extends Component<Props, State> {
               <p className="text-xs text-zinc-400 leading-relaxed">
                 A temporary display glitch occurred. Tap below to reload the store with the latest clothing catalog.
               </p>
+              {this.state.error?.message && (
+                <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-left text-[11px] font-mono text-rose-400 break-all overflow-x-auto max-h-32">
+                  <strong>Error details:</strong> {this.state.error.message}
+                </div>
+              )}
             </div>
             <div className="pt-2 flex flex-col gap-2">
               <button

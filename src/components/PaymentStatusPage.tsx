@@ -667,11 +667,11 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
               <>
                 <div className="flex justify-between text-zinc-400">
                   <span>Customer:</span>
-                  <span className="text-white">{order.customer.fullName}</span>
+                  <span className="text-white">{order?.customer?.fullName || 'LASS Customer'}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Total Due:</span>
-                  <strong className="text-emerald-400 font-bold">{formatZAR(order.estimatedTotal)}</strong>
+                  <strong className="text-emerald-400 font-bold">{formatZAR(order?.estimatedTotal || 0)}</strong>
                 </div>
               </>
             )}
@@ -787,11 +787,11 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
               <>
                 <div className="flex justify-between text-zinc-400">
                   <span>Customer Name:</span>
-                  <span className="text-white">{order.customer.fullName}</span>
+                  <span className="text-white">{order?.customer?.fullName || 'LASS Customer'}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400">
                   <span>Total Amount:</span>
-                  <strong className="text-emerald-400 font-bold">{formatZAR(order.estimatedTotal)}</strong>
+                  <strong className="text-emerald-400 font-bold">{formatZAR(order?.estimatedTotal || 0)}</strong>
                 </div>
               </>
             )}
