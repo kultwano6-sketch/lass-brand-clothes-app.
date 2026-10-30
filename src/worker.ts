@@ -292,7 +292,14 @@ export default {
               signatureMatches = true;
             }
           }
-          // 2. Try with brand passphrase 'HARVEST KE LASS'
+          // 2. Try with brand passphrases
+          if (!signatureMatches && config.passphrase !== 'HARVEST-kE_LAS2') {
+            const liveSig = verifyPayFastITNSignature(itnData, rawBody, 'HARVEST-kE_LAS2');
+            if (liveSig.isValid) {
+              itnSigCheck = liveSig;
+              signatureMatches = true;
+            }
+          }
           if (!signatureMatches && config.passphrase !== 'HARVEST KE LASS') {
             const brandSig = verifyPayFastITNSignature(itnData, rawBody, 'HARVEST KE LASS');
             if (brandSig.isValid) {
@@ -320,6 +327,7 @@ export default {
         // 2. Validate merchant ID
         const isAcceptedMerchant =
           String(itnData.merchant_id) === String(config.merchantId) ||
+          String(itnData.merchant_id) === '37582031' ||
           String(itnData.merchant_id) === '10056107' ||
           (config.isSandbox && (String(itnData.merchant_id) === '10004002' || String(itnData.merchant_id) === '10000100'));
 

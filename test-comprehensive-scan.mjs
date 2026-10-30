@@ -33,13 +33,13 @@ async function runComprehensiveScan() {
 
   const kv = new MockKV();
   const env = {
-    PAYFAST_SANDBOX: 'true',
+    PAYFAST_SANDBOX: 'false',
     ALLOW_SANDBOX_SIMULATION: 'false',
     APP_URL: 'https://lass-brand-clothes-app.harvestkelass.workers.dev',
     ORDERS_KV: kv,
-    PAYFAST_MERCHANT_ID: '10056107',
-    PAYFAST_MERCHANT_KEY: '83lc36ab316ei',
-    PAYFAST_PASSPHRASE: 'HARVEST KE LASS',
+    PAYFAST_MERCHANT_ID: '37582031',
+    PAYFAST_MERCHANT_KEY: 'afmuiphiwjsed',
+    PAYFAST_PASSPHRASE: 'HARVEST-kE_LAS2',
   };
 
   // Test 1: formatZAR resilience across edge cases
@@ -212,9 +212,9 @@ async function runComprehensiveScan() {
       name_first: 'Kutlwano',
       name_last: 'Maila',
       email_address: 'kultwano6@gmail.com',
-      merchant_id: '10056107',
+      merchant_id: '37582031',
     };
-    itnPayload.signature = generatePayFastITNSignature(itnPayload, 'HARVEST KE LASS');
+    itnPayload.signature = generatePayFastITNSignature(itnPayload, 'HARVEST-kE_LAS2');
 
     const itnBody = Object.entries(itnPayload)
       .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -246,7 +246,7 @@ async function runComprehensiveScan() {
       pf_payment_id: 'FORGED_TXN',
       payment_status: 'COMPLETE',
       amount_gross: '300.00',
-      merchant_id: '10056107',
+      merchant_id: '37582031',
       signature: 'bad_signature_hash_12345',
     };
     const itnBody = Object.entries(forgedPayload)
@@ -271,9 +271,9 @@ async function runComprehensiveScan() {
       pf_payment_id: 'PF-TXN-SCAN-994411',
       payment_status: 'COMPLETE',
       amount_gross: '300.00',
-      merchant_id: '10056107',
+      merchant_id: '37582031',
     };
-    itnPayload.signature = generatePayFastITNSignature(itnPayload, 'HARVEST KE LASS');
+    itnPayload.signature = generatePayFastITNSignature(itnPayload, 'HARVEST-kE_LAS2');
     const itnBody = Object.entries(itnPayload)
       .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
       .join('&');

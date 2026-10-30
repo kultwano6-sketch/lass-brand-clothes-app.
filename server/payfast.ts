@@ -35,26 +35,35 @@ export function getPayFastConfig(env?: PayFastEnv): PayFastConfig {
 
   // Determine merchant credentials:
   // User's configured or primary merchant credentials:
-  // Primary LASS merchant ID is 10056107 with merchant key 83lc36ab316ei.
+  // Primary LASS Live merchant ID is 37582031 with merchant key afmuiphiwjsed and passphrase HARVEST-kE_LAS2.
+  // Primary LASS Sandbox merchant ID is 10056107 with merchant key 83lc36ab316ei and passphrase HARVEST KE LASS.
   let merchantId: string;
   let merchantKey: string;
   let passphrase: string;
 
   if (rawMerchantId) {
-    // Explicitly provided merchant ID (10056107, 10004002, or custom)
+    // Explicitly provided merchant ID (37582031, 10056107, 10004002, or custom)
     merchantId = rawMerchantId;
-    merchantKey = rawMerchantKey || (rawMerchantId === '10056107' ? '83lc36ab316ei' : (rawMerchantId === '10004002' ? 'q1cd2rdny4a53' : ''));
-    passphrase = rawPassphrase || (rawMerchantId === '10056107' ? 'HARVEST KE LASS' : (rawMerchantId === '10004002' ? 'payfast' : ''));
+    merchantKey = rawMerchantKey || (
+      rawMerchantId === '37582031' ? 'afmuiphiwjsed' :
+      rawMerchantId === '10056107' ? '83lc36ab316ei' :
+      rawMerchantId === '10004002' ? 'q1cd2rdny4a53' : ''
+    );
+    passphrase = rawPassphrase || (
+      rawMerchantId === '37582031' ? 'HARVEST-kE_LAS2' :
+      rawMerchantId === '10056107' ? 'HARVEST KE LASS' :
+      rawMerchantId === '10004002' ? 'payfast' : ''
+    );
   } else if (isSandbox) {
     // In sandbox mode default to LASS sandbox credentials (10056107 / 83lc36ab316ei / HARVEST KE LASS)
     merchantId = '10056107';
     merchantKey = rawMerchantKey || '83lc36ab316ei';
     passphrase = rawPassphrase || 'HARVEST KE LASS';
   } else {
-    // In live mode default to LASS brand credentials
-    merchantId = '10056107';
-    merchantKey = rawMerchantKey || '83lc36ab316ei';
-    passphrase = rawPassphrase || 'HARVEST KE LASS';
+    // In live mode default to LASS live merchant credentials from PayFast developer settings
+    merchantId = '37582031';
+    merchantKey = rawMerchantKey || 'afmuiphiwjsed';
+    passphrase = rawPassphrase || 'HARVEST-kE_LAS2';
   }
 
   const appUrl = e.APP_URL || e.PUBLIC_APP_URL || 'http://localhost:3000';

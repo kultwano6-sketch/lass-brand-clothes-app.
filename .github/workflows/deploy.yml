@@ -33,7 +33,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
         env:
-          PAYFAST_SANDBOX: ${{ secrets.PAYFAST_SANDBOX || 'true' }}
-          PAYFAST_MERCHANT_ID: ${{ secrets.PAYFAST_MERCHANT_ID }}
-          PAYFAST_MERCHANT_KEY: ${{ secrets.PAYFAST_MERCHANT_KEY }}
-          PAYFAST_PASSPHRASE: ${{ secrets.PAYFAST_PASSPHRASE }}
+          PAYFAST_SANDBOX: ${{ secrets.PAYFAST_SANDBOX || 'false' }}
+          PAYFAST_MERCHANT_ID: ${{ secrets.PAYFAST_MERCHANT_ID || '37582031' }}
+          PAYFAST_MERCHANT_KEY: ${{ secrets.PAYFAST_MERCHANT_KEY || 'afmuiphiwjsed' }}
+          PAYFAST_PASSPHRASE: ${{ secrets.PAYFAST_PASSPHRASE || 'HARVEST-kE_LAS2' }}

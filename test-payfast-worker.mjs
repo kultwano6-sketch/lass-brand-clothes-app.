@@ -747,15 +747,17 @@ async function runTests() {
   // Test 27: Live credentials in production mode (PAYFAST_SANDBOX='false') preserve user's merchant ID
   {
     const liveCfg = getPayFastConfig({
-      PAYFAST_MERCHANT_ID: '10056107',
-      PAYFAST_MERCHANT_KEY: '83lc36ab316ei',
+      PAYFAST_MERCHANT_ID: '37582031',
+      PAYFAST_MERCHANT_KEY: 'afmuiphiwjsed',
+      PAYFAST_PASSPHRASE: 'HARVEST-kE_LAS2',
       PAYFAST_SANDBOX: 'false'
     });
-    assert.strictEqual(liveCfg.merchantId, '10056107');
-    assert.strictEqual(liveCfg.merchantKey, '83lc36ab316ei');
+    assert.strictEqual(liveCfg.merchantId, '37582031');
+    assert.strictEqual(liveCfg.merchantKey, 'afmuiphiwjsed');
+    assert.strictEqual(liveCfg.passphrase, 'HARVEST-kE_LAS2');
     assert.strictEqual(liveCfg.isSandbox, false);
     assert.strictEqual(liveCfg.processUrl, 'https://www.payfast.co.za/eng/process');
-    console.log('✓ Test 27 Passed: Live credentials are fully preserved in production mode (payfast.co.za)');
+    console.log('✓ Test 27 Passed: Live credentials 37582031 are fully preserved in production mode (payfast.co.za)');
     passed++;
   }
 
