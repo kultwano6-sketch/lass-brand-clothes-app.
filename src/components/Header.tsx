@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package, Smartphone } from 'lucide-react';
+import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package, Smartphone, Download } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { BrandConfig } from '../types';
@@ -82,6 +82,15 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-3 shrink-0 text-zinc-300">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('lass:open-install-prompt'))}
+              className="hover:text-orange-400 text-orange-400 transition-colors flex items-center gap-1 text-[11px] font-bold"
+              title="Install LASS Mobile App"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Install App</span>
+            </button>
+            <span className="text-emerald-700 hidden sm:inline">•</span>
             <button
               onClick={onOpenOrderStatus}
               className="hover:text-orange-400 text-white transition-colors flex items-center gap-1 text-[11px] font-bold"
@@ -392,6 +401,21 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>LASS App Icon &amp; APK Package</span>
               </button>
             )}
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('lass:open-install-prompt'));
+                setMobileMenuOpen(false);
+              }}
+              className="py-2.5 px-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 rounded-xl text-left flex items-center justify-between text-black font-extrabold shadow-md mt-1"
+            >
+              <div className="flex items-center gap-2">
+                <Download className="w-4 h-4 stroke-[2.5]" />
+                <span>Install LASS Mobile App</span>
+              </div>
+              <span className="text-[10px] bg-black/20 text-black px-2 py-0.5 rounded-full font-black">
+                PWA
+              </span>
+            </button>
           </div>
         </div>
       )}

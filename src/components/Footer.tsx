@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Phone, Truck, ShieldCheck, Ruler, ExternalLink, Heart, Package, Smartphone } from 'lucide-react';
+import { MessageSquare, Phone, Truck, ShieldCheck, Ruler, ExternalLink, Heart, Package, Smartphone, Download } from 'lucide-react';
 import { BrandConfig } from '../types';
 
 interface FooterProps {
@@ -119,6 +119,15 @@ export const Footer: React.FC<FooterProps> = ({
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Brand Audit Data</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('lass:open-install-prompt'))}
+                  className="hover:text-orange-300 transition-colors flex items-center gap-1.5 text-orange-400 font-bold"
+                >
+                  <Download className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Install LASS Mobile App</span>
                 </button>
               </li>
               {onOpenAppIcon && (

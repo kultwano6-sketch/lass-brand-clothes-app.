@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Heart, ShoppingBag, MessageSquare, Truck, ShieldCheck, Ruler, Sparkles, Check, Info } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Heart, ShoppingBag, MessageSquare, Truck, ShieldCheck, Ruler, Sparkles, Check, Info, ZoomIn, ZoomOut } from 'lucide-react';
 import { Product, BrandConfig } from '../types';
 import { formatZAR, buildWhatsAppLink, generateOrderReference } from '../utils/whatsapp';
 import { useCart } from '../context/CartContext';
@@ -30,6 +30,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [selectedColour, setSelectedColour] = useState<string>(product.availableColours[0] || 'Classic Black');
   const [quantity, setQuantity] = useState(1);
   const [addedAnimation, setAddedAnimation] = useState(false);
+
+  // Magnifying glass / pinch-to-zoom interactive state
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageContainerRef.current) return;
+    const rect = imageContainerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    setZoomOrigin({ x, y });
+  };
+
+  const handleToggleZoom = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setIsZoomed((prev) => !prev);
+  };
 
   const wishlisted = isInWishlist(product.id);
 
@@ -79,16 +97,32 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         {/* Left Side: Product Gallery */}
         <div className="md:w-1/2 bg-black p-4 sm:p-6 flex flex-col justify-between">
-          <div className="relative aspect-square sm:aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+          <div
+            ref={imageContainerRef}
+            onMouseMove={handleMouseMove}
+            onMouseEnter={() => setIsZoomed(true)}
+            onMouseLeave={() => setIsZoomed(false)}
+            onClick={handleToggleZoom}
+            className={`relative aspect-square sm:aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 select-none ${
+              isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'
+            }`}
+            title="Hover or tap to zoom fabric & print detail"
+          >
             <img
               src={product.images[selectedImageIndex] || product.images[0]}
               alt={product.name}
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover object-center"
+              className="w-full h-full object-cover object-center pointer-events-none transition-transform will-change-transform"
+              style={{
+                transform: isZoomed ? 'scale(2.2)' : 'scale(1)',
+                transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+                transitionDuration: isZoomed ? '120ms' : '250ms',
+                transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)',
+              }}
             />
 
             {/* Badges */}
-            <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+            <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none">
               {product.isNewDrop && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-black tracking-wider uppercase bg-orange-500 text-white shadow-lg">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -105,15 +139,34 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             {/* Wishlist toggle on image */}
             <button
-              onClick={() => toggleWishlist(product.id)}
-              className={`absolute top-3 right-3 p-2.5 rounded-full backdrop-blur-md transition-colors ${
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleWishlist(product.id);
+              }}
+              className={`absolute top-3 right-3 p-2.5 rounded-full backdrop-blur-md transition-colors z-20 ${
                 wishlisted
                   ? 'bg-orange-500 text-white shadow-lg'
                   : 'bg-black/70 text-white hover:text-orange-400'
               }`}
+              title="Add to wishlist"
             >
               <Heart className={`w-4 h-4 ${wishlisted ? 'fill-current' : ''}`} />
             </button>
+
+            {/* Magnifying Glass Indicator Badge */}
+            <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-zinc-700/80 text-[10px] text-zinc-300 font-semibold flex items-center gap-1.5 z-10 pointer-events-none shadow-lg">
+              {isZoomed ? (
+                <>
+                  <ZoomOut className="w-3.5 h-3.5 text-orange-400" />
+                  <span>2.2x Fabric Zoom</span>
+                </>
+              ) : (
+                <>
+                  <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Hover / Tap to Zoom</span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Thumbnails row if multiple images exist */}
