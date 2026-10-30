@@ -10,6 +10,7 @@ interface FooterProps {
   onOpenOrderStatus: () => void;
   onOpenAdminPortal?: () => void;
   onOpenAppIcon?: () => void;
+  onOpenInstallApp?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -20,6 +21,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenOrderStatus,
   onOpenAdminPortal,
   onOpenAppIcon,
+  onOpenInstallApp,
 }) => {
   const footerTapCountRef = React.useRef(0);
   const footerLastTapTimeRef = React.useRef(0);
@@ -123,7 +125,10 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('lass:open-install-prompt'))}
+                  onClick={() => {
+                    if (onOpenInstallApp) onOpenInstallApp();
+                    window.dispatchEvent(new CustomEvent('lass:open-install-prompt'));
+                  }}
                   className="hover:text-orange-300 transition-colors flex items-center gap-1.5 text-orange-400 font-bold"
                 >
                   <Download className="w-3.5 h-3.5 text-orange-400" />

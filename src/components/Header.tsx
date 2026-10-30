@@ -17,6 +17,7 @@ interface HeaderProps {
   onOpenWishlist: () => void;
   onOpenOrderStatus: () => void;
   onOpenAppIcon?: () => void;
+  onOpenInstallApp?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWishlist,
   onOpenOrderStatus,
   onOpenAppIcon,
+  onOpenInstallApp,
 }) => {
   const { totalItems, setIsCartOpen } = useCart();
   const { totalWishlistCount } = useWishlist();
@@ -83,7 +85,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="flex items-center gap-3 shrink-0 text-zinc-300">
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('lass:open-install-prompt'))}
+              onClick={() => {
+                if (onOpenInstallApp) onOpenInstallApp();
+                window.dispatchEvent(new CustomEvent('lass:open-install-prompt'));
+              }}
               className="hover:text-orange-400 text-orange-400 transition-colors flex items-center gap-1 text-[11px] font-bold"
               title="Install LASS Mobile App"
             >
@@ -403,6 +408,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             <button
               onClick={() => {
+                if (onOpenInstallApp) onOpenInstallApp();
                 window.dispatchEvent(new CustomEvent('lass:open-install-prompt'));
                 setMobileMenuOpen(false);
               }}

@@ -92,6 +92,7 @@ function MainShopContent() {
   const [isWishlistOpen, setIsWishlistOpen] = useState<boolean>(false);
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState<boolean>(false);
   const [isAppIconOpen, setIsAppIconOpen] = useState<boolean>(false);
+  const [isInstallAppOpen, setIsInstallAppOpen] = useState<boolean>(false);
   const [orderStatusRef, setOrderStatusRef] = useState<string>('');
 
   // PayFast Return / Cancel Route State
@@ -280,6 +281,7 @@ function MainShopContent() {
         setSearchQuery={setSearchQuery}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenAppIcon={() => setIsAppIconOpen(true)}
+        onOpenInstallApp={() => setIsInstallAppOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -514,6 +516,7 @@ function MainShopContent() {
         }}
         onOpenAdminPortal={handleOpenOwnerPortal}
         onOpenAppIcon={() => setIsAppIconOpen(true)}
+        onOpenInstallApp={() => setIsInstallAppOpen(true)}
       />
 
       {/* Modals & Drawers */}
@@ -614,7 +617,10 @@ function MainShopContent() {
       )}
 
       {/* PWA Install Banner */}
-      <PWAInstallBanner />
+      <PWAInstallBanner
+        forceOpen={isInstallAppOpen}
+        onClose={() => setIsInstallAppOpen(false)}
+      />
     </div>
   );
 }
