@@ -3,6 +3,7 @@ import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package, Sm
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { BrandConfig } from '../types';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 interface HeaderProps {
   brandConfig: BrandConfig;
@@ -217,6 +218,9 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-xs font-bold text-zinc-200 hidden lg:inline">Track</span>
           </button>
 
+          {/* Daylight / Night Theme Switcher */}
+          <ThemeSwitcher />
+
           {/* Wishlist */}
           <button
             onClick={onOpenWishlist}
@@ -359,6 +363,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>LASS App Icon &amp; APK Package</span>
               </button>
             )}
+            <div className="pt-1">
+              <ThemeSwitcher showLabel={true} className="w-full justify-between py-2.5 px-3" />
+            </div>
+
             <button
               onClick={() => {
                 if (onOpenInstallApp) onOpenInstallApp();

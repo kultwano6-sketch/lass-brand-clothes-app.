@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquare, Phone, Truck, ShieldCheck, Ruler, ExternalLink, Heart, Package, Smartphone, Download } from 'lucide-react';
 import { BrandConfig } from '../types';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 interface FooterProps {
   brandConfig: BrandConfig;
@@ -210,17 +211,20 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
         </div>
 
-        {/* Bottom Bar — Completely clean with no visible admin buttons */}
+        {/* Bottom Bar — Clean with Daylight / Night Mode Switcher */}
         <div className="pt-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-400">
           <div>
             <span>&copy; {new Date().getFullYear()} {brandConfig.brandName}. All rights reserved.</span>
           </div>
 
-          <p className="flex items-center gap-1 text-zinc-300">
-            <span>Crafted for Kasi streetwear with</span>
-            <Heart className="w-3 h-3 text-orange-500 fill-current inline" />
-            <span>in South Africa</span>
-          </p>
+          <div className="flex items-center gap-4">
+            <ThemeSwitcher showLabel={true} />
+            <p className="flex items-center gap-1 text-zinc-300">
+              <span>Crafted for Kasi streetwear with</span>
+              <Heart className="w-3 h-3 text-orange-500 fill-current inline" />
+              <span>in South Africa</span>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

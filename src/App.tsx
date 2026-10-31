@@ -5,6 +5,7 @@ import { INITIAL_PRODUCTS } from './data/initialProducts';
 import { INITIAL_BRAND_CONFIG } from './data/brandConfig';
 import { CartProvider, useCart } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -620,10 +621,12 @@ function MainShopContent() {
 
 export default function App() {
   return (
-    <CartProvider>
-      <WishlistProvider>
-        <MainShopContent />
-      </WishlistProvider>
-    </CartProvider>
+    <ThemeProvider>
+      <CartProvider>
+        <WishlistProvider>
+          <MainShopContent />
+        </WishlistProvider>
+      </CartProvider>
+    </ThemeProvider>
   );
 }
