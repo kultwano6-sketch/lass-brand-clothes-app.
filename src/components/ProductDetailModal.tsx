@@ -11,6 +11,7 @@ interface ProductDetailModalProps {
   brandConfig: BrandConfig;
   onOpenSizeGuide: () => void;
   onOpenPaxiInfo: () => void;
+  allProducts?: Product[];
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -19,6 +20,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   brandConfig,
   onOpenSizeGuide,
   onOpenPaxiInfo,
+  allProducts = [],
 }) => {
   if (!product) return null;
 
@@ -50,6 +52,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const wishlisted = isInWishlist(product.id);
+
+  // Companion product for Complete the Look bundle pairing
+  const companionProduct = (allProducts || []).find((p) => {
+    if (product.category === 'accessories') {
+      return p.category !== 'accessories';
+    }
+    return p.category === 'accessories';
+  }) || (allProducts || []).find((p) => p.id !== product.id);
+
+  const [companionAdded, setCompanionAdded] = useState(false);
 
   const handleAddBag = () => {
     addToCart(product, selectedSize, selectedColour, quantity);
@@ -349,6 +361,59 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 Subtotal: <strong className="text-white">{formatZAR(product.price * quantity)}</strong>
               </span>
             </div>
+
+            {/* Complete the Look — Smart Streetwear Pairing */}
+            {companionProduct && (
+              <div className="mt-4 p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-orange-400 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-orange-400" />
+                    Complete the Look
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                    Combo Match
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <img
+                    src={companionProduct.images[0]}
+                    alt={companionProduct.name}
+                    className="w-12 h-12 rounded-xl object-cover bg-black border border-zinc-800 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-xs text-white truncate">{companionProduct.name}</h4>
+                    <span className="text-xs text-orange-400 font-mono font-bold block">{formatZAR(companionProduct.price)}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      addToCart(
+                        companionProduct,
+                        companionProduct.availableSizes[0] || 'Standard',
+                        companionProduct.availableColours[0] || 'Classic Black',
+                        1
+                      );
+                      setCompanionAdded(true);
+                      setTimeout(() => setCompanionAdded(false), 1500);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs border transition-colors shrink-0 flex items-center gap-1 ${
+                      companionAdded
+                        ? 'bg-emerald-600 text-white border-emerald-500'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700'
+                    }`}
+                  >
+                    {companionAdded ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Added!</span>
+                      </>
+                    ) : (
+                      <span>+ Add Combo</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action CTAs in Green, White, Blue, Orange */}

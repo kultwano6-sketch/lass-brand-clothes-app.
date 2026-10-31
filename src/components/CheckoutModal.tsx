@@ -24,12 +24,17 @@ import {
   Clock,
   ChevronRight,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  Search,
+  CheckCheck
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { BrandConfig, OrderCustomerDetails, SubmittedOrder } from '../types';
 import { formatZAR, generateOrderReference, generateWhatsAppOrderMessage, buildWhatsAppLink } from '../utils/whatsapp';
 import { saveLocalOrder } from '../utils/orderStorage';
+import { POPULAR_PAXI_BRANCHES, PaxiBranch } from '../data/paxiBranches';
+
+const SAVED_CUSTOMER_PROFILE_KEY = 'lass_saved_customer_profile_v1';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -51,15 +56,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Step: 'details' -> 'payment' -> 'success'
   const [currentStep, setCurrentStep] = useState<'details' | 'payment' | 'success'>('details');
 
-  const [customer, setCustomer] = useState<OrderCustomerDetails>({
-    fullName: '',
-    phoneOrWhatsApp: '',
-    email: '',
-    deliveryMethod: 'paxi-standard',
-    pepStoreBranch: '',
-    deliveryAddress: '',
-    customerNote: '',
+  // Customer details with fast checkout local memory
+  const [customer, setCustomer] = useState<OrderCustomerDetails>(() => {
+    try {
+      const saved = localStorage.getItem(SAVED_CUSTOMER_PROFILE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          fullName: parsed.fullName || '',
+          phoneOrWhatsApp: parsed.phoneOrWhatsApp || '',
+          email: parsed.email || '',
+          deliveryMethod: parsed.deliveryMethod || 'paxi-standard',
+          pepStoreBranch: parsed.pepStoreBranch || '',
+          deliveryAddress: parsed.deliveryAddress || '',
+          customerNote: parsed.customerNote || '',
+        };
+      }
+    } catch {}
+    return {
+      fullName: '',
+      phoneOrWhatsApp: '',
+      email: '',
+      deliveryMethod: 'paxi-standard',
+      pepStoreBranch: '',
+      deliveryAddress: '',
+      customerNote: '',
+    };
   });
+
+  const [hasSavedProfile, setHasSavedProfile] = useState<boolean>(() => {
+    try {
+      return Boolean(localStorage.getItem(SAVED_CUSTOMER_PROFILE_KEY));
+    } catch {
+      return false;
+    }
+  });
+
+  // PAXI PEP branch search and quick selector state
+  const [paxiFilterQuery, setPaxiFilterQuery] = useState('');
+  const [isPaxiPickerOpen, setIsPaxiPickerOpen] = useState(false);
 
   // Selected checkout method: 'payfast' (primary official gateway) or 'whatsapp' (manual)
   const [selectedMethod, setSelectedMethod] = useState<'payfast' | 'whatsapp'>('payfast');
@@ -114,6 +149,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setValidationError('Please specify your nearest PEP Store branch or town for PAXI pickup.');
       return;
     }
+
+    // Persist customer profile to local storage for fast checkout next time
+    try {
+      localStorage.setItem(SAVED_CUSTOMER_PROFILE_KEY, JSON.stringify(customer));
+      setHasSavedProfile(true);
+    } catch {}
 
     setValidationError('');
     setCurrentStep('payment');
@@ -321,6 +362,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {/* STEP 1: CUSTOMER & DELIVERY DETAILS */}
           {currentStep === 'details' && (
             <form onSubmit={handleValidateDetails} className="space-y-4">
+              {/* Saved Customer Profile Fast-Checkout Banner */}
+              {hasSavedProfile && customer.fullName && (
+                <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 flex items-center justify-between text-xs animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <strong>Fast Checkout:</strong> Loaded saved details for <strong>{customer.fullName.split(' ')[0]}</strong>.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        localStorage.removeItem(SAVED_CUSTOMER_PROFILE_KEY);
+                      } catch {}
+                      setHasSavedProfile(false);
+                      setCustomer({
+                        fullName: '',
+                        phoneOrWhatsApp: '',
+                        email: '',
+                        deliveryMethod: 'paxi-standard',
+                        pepStoreBranch: '',
+                        deliveryAddress: '',
+                        customerNote: '',
+                      });
+                    }}
+                    className="text-[11px] text-zinc-400 hover:text-rose-400 transition-colors underline shrink-0 ml-2"
+                  >
+                    Clear Info
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-white mb-1">
@@ -446,10 +520,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
 
                 {customer.deliveryMethod.startsWith('paxi') && (
-                  <div>
-                    <label className="block text-xs font-bold text-white mb-1">
-                      Nearest PEP Store Branch or PAXI Code *
-                    </label>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-white">
+                        Nearest PEP Store Branch or PAXI Code *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsPaxiPickerOpen(!isPaxiPickerOpen)}
+                        className="text-[11px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1 transition-colors"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>{isPaxiPickerOpen ? 'Hide Branch List' : 'Search PEP Branches'}</span>
+                      </button>
+                    </div>
+
                     <div className="relative">
                       <MapPin className="w-4 h-4 text-orange-400 absolute left-3 top-2.5" />
                       <input
@@ -461,6 +546,89 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         required
                       />
                     </div>
+
+                    {/* Quick City/Mall Chips */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 no-scrollbar">
+                      <span className="text-[10px] text-zinc-500 uppercase font-black shrink-0">Popular:</span>
+                      {[
+                        { label: 'Soweto Bara Mall', code: 'P4021' },
+                        { label: 'Maponya Mall', code: 'P4105' },
+                        { label: 'Carlton Centre JHB', code: 'P3012' },
+                        { label: 'Menlyn Pretoria', code: 'P2045' },
+                        { label: 'Savannah Polokwane', code: 'P7001' },
+                        { label: 'Durban Workshop', code: 'P5001' },
+                        { label: 'Canal Walk Cape Town', code: 'P1050' },
+                      ].map((item) => (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => {
+                            setCustomer({
+                              ...customer,
+                              pepStoreBranch: `PEP Store ${item.label} (${item.code})`,
+                            });
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors border ${
+                            customer.pepStoreBranch.includes(item.code)
+                              ? 'bg-orange-500/20 text-orange-400 border-orange-500/60'
+                              : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Searchable Dropdown List */}
+                    {isPaxiPickerOpen && (
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 space-y-2.5 shadow-xl animate-in fade-in">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
+                          <input
+                            type="text"
+                            placeholder="Type town or mall (e.g. Pretoria, Tembisa, Soweto)..."
+                            value={paxiFilterQuery}
+                            onChange={(e) => setPaxiFilterQuery(e.target.value)}
+                            className="w-full bg-black border border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                          />
+                        </div>
+
+                        <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
+                          {POPULAR_PAXI_BRANCHES.filter((b) => {
+                            const q = paxiFilterQuery.toLowerCase().trim();
+                            if (!q) return true;
+                            return (
+                              b.name.toLowerCase().includes(q) ||
+                              b.city.toLowerCase().includes(q) ||
+                              b.province.toLowerCase().includes(q) ||
+                              b.code.toLowerCase().includes(q) ||
+                              b.address.toLowerCase().includes(q)
+                            );
+                          }).slice(0, 8).map((branch) => (
+                            <button
+                              key={branch.code}
+                              type="button"
+                              onClick={() => {
+                                setCustomer({
+                                  ...customer,
+                                  pepStoreBranch: `${branch.name} (${branch.code}) - ${branch.city}`,
+                                });
+                                setIsPaxiPickerOpen(false);
+                              }}
+                              className="w-full p-2 rounded-xl text-left bg-zinc-950 hover:bg-zinc-800 border border-zinc-800/80 transition-colors flex items-center justify-between gap-2 text-xs"
+                            >
+                              <div className="min-w-0">
+                                <strong className="text-white block font-bold truncate">{branch.name}</strong>
+                                <span className="text-[10px] text-zinc-400 block truncate">{branch.address}</span>
+                              </div>
+                              <span className="text-[10px] font-mono font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 shrink-0">
+                                {branch.code}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

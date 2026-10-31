@@ -23,6 +23,7 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { AppIconModal } from './components/AppIconModal';
 import { PaymentStatusPage } from './components/PaymentStatusPage';
 import { SearchAndFilters, SortOption } from './components/SearchAndFilters';
+import { ReviewsSection } from './components/ReviewsSection';
 
 const PRODUCTS_STORAGE_KEY = 'lass_products_catalog_v1';
 const BRAND_CONFIG_STORAGE_KEY = 'lass_brand_config_v1';
@@ -480,6 +481,9 @@ function MainShopContent() {
           )}
         </section>
 
+        {/* Customer Reviews & Street Style Section */}
+        <ReviewsSection brandConfig={brandConfig} />
+
         {/* Brand Ethos and Origin Story Section */}
         <BrandStorySection
           brandConfig={brandConfig}
@@ -514,6 +518,7 @@ function MainShopContent() {
         brandConfig={brandConfig}
         onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
         onOpenPaxiInfo={() => setIsPaxiInfoOpen(true)}
+        allProducts={products}
       />
 
       <CartDrawer
