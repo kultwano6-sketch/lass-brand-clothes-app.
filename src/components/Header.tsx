@@ -69,53 +69,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800">
-      {/* Top Streetwear Ticker Announcement in Green, White, Blue & Orange */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-zinc-950 border-b border-emerald-800/40 text-[11px] font-medium text-white py-1.5 px-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-orange-500 text-white shadow-sm uppercase tracking-wider">
-              HARVEST KE LASS
-            </span>
-            <span className="font-bold text-emerald-200 hidden sm:inline">{brandConfig.tagline}</span>
-            <span className="text-zinc-300">•</span>
-            <span className="text-blue-300 font-semibold flex items-center gap-1">
-              PAXI PEP Delivery Nationwide (R60)
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 text-zinc-300">
-            <button
-              onClick={() => {
-                if (onOpenInstallApp) onOpenInstallApp();
-                window.dispatchEvent(new CustomEvent('lass:open-install-prompt'));
-              }}
-              className="hover:text-orange-400 text-orange-400 transition-colors flex items-center gap-1 text-[11px] font-bold"
-              title="Install LASS Mobile App"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Install App</span>
-            </button>
-            <span className="text-emerald-700 hidden sm:inline">•</span>
-            <button
-              onClick={onOpenOrderStatus}
-              className="hover:text-orange-400 text-white transition-colors flex items-center gap-1 text-[11px] font-bold"
-              title="Track Manual WhatsApp Order"
-            >
-              <Package className="w-3.5 h-3.5 text-blue-400" />
-              <span>Track Order</span>
-            </button>
-            <span className="text-emerald-700 hidden sm:inline">•</span>
-            <button
-              onClick={onOpenAuditModal}
-              className="hover:text-emerald-300 transition-colors flex items-center gap-1 text-[11px] text-zinc-300"
-              title="View Google Sites Brand Audit Data"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden md:inline">Audited Store</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
