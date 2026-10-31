@@ -375,18 +375,6 @@ function MainShopContent() {
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <span>Audited Google Sites Prices</span>
               </button>
-              <button
-                onClick={() => setIsAppIconOpen(true)}
-                className="flex items-center gap-1.5 hover:text-white text-orange-400 font-bold transition-colors"
-                title="View & Download official LASS APK app icon"
-              >
-                <img
-                  src="/icon-192.png"
-                  alt="APK Icon"
-                  className="w-4 h-4 rounded-md border border-orange-500/60 object-contain"
-                />
-                <span>Official APK Icon (512px)</span>
-              </button>
               <div className="flex items-center gap-1.5 text-zinc-300">
                 <CreditCard className="w-4 h-4 text-orange-400" />
                 <span>Pay In-App (Card &amp; Capitec Pay)</span>
