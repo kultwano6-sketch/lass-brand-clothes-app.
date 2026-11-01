@@ -4,6 +4,8 @@ import { Product, BrandConfig } from '../types';
 import { formatZAR, buildWhatsAppLink, generateOrderReference } from '../utils/whatsapp';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { FitCalculatorModal } from './FitCalculatorModal';
+import { getSavedSizePreference } from '../utils/sizeCalculator';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -27,8 +29,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
+  const [savedSizePref, setSavedSizePref] = useState<string | null>(() => getSavedSizePreference());
+  const [isFitCalculatorOpen, setIsFitCalculatorOpen] = useState(false);
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedSize, setSelectedSize] = useState<string>(product.availableSizes[0] || 'L');
+  const [selectedSize, setSelectedSize] = useState<string>(() => {
+    const saved = getSavedSizePreference();
+    if (saved && product.availableSizes.includes(saved)) {
+      return saved;
+    }
+    return product.availableSizes[0] || 'L';
+  });
   const [selectedColour, setSelectedColour] = useState<string>(product.availableColours[0] || 'Classic Black');
   const [quantity, setQuantity] = useState(1);
   const [addedAnimation, setAddedAnimation] = useState(false);
@@ -264,33 +275,60 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             {/* Size Selector */}
             <div className="mt-5">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-black uppercase tracking-wider text-white">
-                  Select Size
-                </label>
-                <button
-                  onClick={onOpenSizeGuide}
-                  className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1 font-bold underline underline-offset-2"
-                >
-                  <Ruler className="w-3.5 h-3.5" />
-                  SA Size Guide
-                </button>
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-black uppercase tracking-wider text-white">
+                    Select Size
+                  </label>
+                  {savedSizePref && (
+                    <span className="text-[10px] font-bold text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
+                      ★ Saved: {savedSizePref}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsFitCalculatorOpen(true)}
+                    className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1 font-bold bg-orange-500/10 hover:bg-orange-500/20 px-2.5 py-1 rounded-xl border border-orange-500/20 transition-colors active:scale-95 shadow-sm"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                    <span>Fit Calculator</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onOpenSizeGuide}
+                    className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 font-bold underline underline-offset-2 transition-colors"
+                  >
+                    <Ruler className="w-3.5 h-3.5" />
+                    <span>Chart</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 {product.availableSizes.map((size) => {
                   const isSelected = selectedSize === size;
+                  const isRecommended = savedSizePref === size;
+
                   return (
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`min-w-12 px-3 py-2 rounded-xl text-xs font-black transition-all border ${
+                      className={`min-w-12 px-3 py-2 rounded-xl text-xs font-black transition-all border relative ${
                         isSelected
                           ? 'bg-orange-500 text-white border-orange-400 shadow-md scale-105'
+                          : isRecommended
+                          ? 'bg-orange-950/40 text-orange-300 border-orange-500/50 hover:border-orange-400'
                           : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-white'
                       }`}
                     >
-                      {size}
+                      <span>{size}</span>
+                      {isRecommended && !isSelected && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                      )}
                     </button>
                   );
                 })}
@@ -461,6 +499,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Streetwear Fit & Size Calculator Modal */}
+      <FitCalculatorModal
+        isOpen={isFitCalculatorOpen}
+        onClose={() => setIsFitCalculatorOpen(false)}
+        onApplySize={(size) => {
+          setSelectedSize(size);
+          setSavedSizePref(size);
+        }}
+        currentSelectedSize={selectedSize}
+      />
     </div>
   );
 };
