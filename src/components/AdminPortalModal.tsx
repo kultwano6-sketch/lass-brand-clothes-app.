@@ -34,7 +34,9 @@ import {
   CheckSquare,
   Square,
   Sliders,
-  Key
+  Key,
+  Users,
+  Printer
 } from 'lucide-react';
 import { Product, BrandConfig, SubmittedOrder } from '../types';
 import { formatZAR, normalizeWhatsAppNumber } from '../utils/whatsapp';
@@ -49,6 +51,8 @@ import {
   ORDERS_STORAGE_KEY
 } from '../utils/orderStorage';
 import { SalesAnalyticsView } from './SalesAnalyticsView';
+import { CustomerDirectoryView } from './CustomerDirectoryView';
+import { PrintableInvoiceModal } from './PrintableInvoiceModal';
 
 interface AdminPortalModalProps {
   isOpen: boolean;
@@ -87,8 +91,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     return existing;
   });
 
-  // Active Navigation Tab: Segmented control between Orders, Inventory, Analytics, and Site Configuration
-  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'analytics' | 'config'>('orders');
+  // Active Navigation Tab: Segmented control between Orders, Inventory, Analytics, Customers CRM, and Site Configuration
+  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'analytics' | 'customers' | 'config'>('orders');
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<SubmittedOrder | null>(null);
   const [configForm, setConfigForm] = useState<BrandConfig>(brandConfig);
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const [notificationMsg, setNotificationMsg] = useState('');
@@ -624,6 +629,62 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     showNotification('Exported orders to CSV!');
   };
 
+  // Export PEP Store Counter Shipping Dispatch Manifest (CSV)
+  const handleExportPepManifestCSV = () => {
+    const headers = [
+      'Drop Date',
+      'Order Ref',
+      'Sender Name',
+      'Sender WhatsApp',
+      'Recipient Full Name',
+      'Recipient Cellphone',
+      'Recipient Email',
+      'Destination PEP Store Branch',
+      'PAXI Service Option',
+      'PAXI Bag Barcode',
+      'Items Ordered',
+      'Declared Value (ZAR)',
+      'Payment Status',
+      'Payment Method',
+      'Dispatch Status',
+      'Customer Note',
+    ];
+
+    const rows = savedOrders.map((o) => {
+      const itemsSummary = o.items
+        .map((it) => `${it.name} [Size: ${it.selectedSize}, Col: ${it.selectedColour}] x${it.quantity}`)
+        .join('; ');
+
+      return [
+        `"${new Date(o.date).toLocaleDateString()}"`,
+        `"#${o.orderNumber}"`,
+        `"${brandConfig.brandName}"`,
+        `"${brandConfig.displayWhatsApp}"`,
+        `"${o.customer.fullName.replace(/"/g, '""')}"`,
+        `"${o.customer.phoneOrWhatsApp}"`,
+        `"${o.customer.email || ''}"`,
+        `"${(o.customer.pepStoreBranch || 'Gauteng Studio').replace(/"/g, '""')}"`,
+        `"${o.customer.deliveryMethod === 'paxi-express' ? 'Express (3-5 business days)' : 'Standard (7-9 business days)'}"`,
+        `"${o.paxiTrackingCode || 'PENDING_DROP_OFF'}"`,
+        `"${itemsSummary.replace(/"/g, '""')}"`,
+        o.estimatedTotal,
+        `"${o.paymentStatus || 'pending'}"`,
+        `"${o.paymentMethod || 'manual_eft'}"`,
+        `"${o.status}"`,
+        `"${(o.customer.customerNote || '').replace(/"/g, '""')}"`,
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LASS_PEP_Dispatch_Manifest_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    showNotification('Exported PEP Shipping Dispatch Manifest CSV!');
+  };
+
   // Export Inventory CSV
   const handleExportInventoryCSV = () => {
     const headers = ['ID', 'Name', 'SKU', 'Category', 'Price ZAR', 'Stock Quantity', 'Status', 'Print Type'];
@@ -944,7 +1005,24 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     </span>
                   </button>
 
-                  {/* Segment 4: Site Configuration */}
+                  {/* Segment 4: Customer Directory & CRM */}
+                  <button
+                    role="tab"
+                    id="tab-customers"
+                    aria-selected={activeTab === 'customers'}
+                    aria-controls="tabpanel-customers"
+                    onClick={() => setActiveTab('customers')}
+                    className={`px-2.5 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${
+                      activeTab === 'customers'
+                        ? 'bg-zinc-800 text-purple-400 shadow-md border border-purple-500/40 ring-1 ring-purple-500/20'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                  >
+                    <Users className={`w-4 h-4 shrink-0 ${activeTab === 'customers' ? 'text-purple-400' : 'text-zinc-400'}`} />
+                    <span className="truncate">Customers</span>
+                  </button>
+
+                  {/* Segment 5: Site Configuration */}
                   <button
                     role="tab"
                     id="tab-config"
@@ -1080,6 +1158,15 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                       >
                         <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Export CSV</span>
+                      </button>
+
+                      <button
+                        onClick={handleExportPepManifestCSV}
+                        className="px-2.5 py-1.5 rounded-xl bg-blue-950/80 hover:bg-blue-900 border border-blue-500/40 text-blue-200 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                        title="Download official PEP Store Counter Shipping Dispatch Manifest (CSV)"
+                      >
+                        <Truck className="w-3.5 h-3.5 text-blue-400" />
+                        <span>PEP Manifest (CSV)</span>
                       </button>
 
                       <button
@@ -1431,6 +1518,15 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               </button>
 
                               <button
+                                onClick={() => setSelectedInvoiceOrder(ord)}
+                                className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-bold text-xs flex items-center gap-1 border border-zinc-700 transition-colors"
+                                title="Print Tax Invoice & Official Packing Slip"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-orange-400" />
+                                <span>Print Slip</span>
+                              </button>
+
+                              <button
                                 onClick={() => handleWhatsAppCustomer(ord)}
                                 className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm"
                                 title="Direct WhatsApp notification to customer"
@@ -1671,6 +1767,13 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                               >
                                 +5
                               </button>
+                              <button
+                                onClick={() => handleAdjustStockDelta(product.id, 10)}
+                                className="px-2 py-1 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded text-xs font-bold"
+                                title="Quick restock +10 units"
+                              >
+                                +10
+                              </button>
                             </div>
 
                             {/* Status Indicator Badge */}
@@ -1727,7 +1830,17 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 4: SITE CONFIGURATION */}
+              {/* TAB 4: CUSTOMER DIRECTORY & CRM */}
+              {activeTab === 'customers' && (
+                <div id="tabpanel-customers" role="tabpanel" aria-labelledby="tab-customers" className="max-w-6xl">
+                  <CustomerDirectoryView
+                    orders={savedOrders}
+                    brandConfig={brandConfig}
+                  />
+                </div>
+              )}
+
+              {/* TAB 5: SITE CONFIGURATION */}
               {activeTab === 'config' && (
                 <div id="tabpanel-config" role="tabpanel" aria-labelledby="tab-config" className="space-y-6 max-w-4xl">
                   {/* Executive Performance Snapshot */}
@@ -2426,6 +2539,16 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Printable Invoice & Packing Slip Modal */}
+      {selectedInvoiceOrder && (
+        <PrintableInvoiceModal
+          isOpen={Boolean(selectedInvoiceOrder)}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          order={selectedInvoiceOrder}
+          brandConfig={brandConfig}
+        />
       )}
     </div>
   );

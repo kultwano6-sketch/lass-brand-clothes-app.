@@ -1,5 +1,22 @@
 import React, { useState, useRef } from 'react';
-import { X, Heart, ShoppingBag, MessageSquare, Truck, ShieldCheck, Ruler, Sparkles, Check, Info, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  X,
+  Heart,
+  ShoppingBag,
+  MessageSquare,
+  Truck,
+  ShieldCheck,
+  Ruler,
+  Sparkles,
+  Check,
+  Info,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Layers,
+  Eye,
+  SlidersHorizontal
+} from 'lucide-react';
 import { Product, BrandConfig } from '../types';
 import { formatZAR, buildWhatsAppLink, generateOrderReference } from '../utils/whatsapp';
 import { useCart } from '../context/CartContext';
@@ -43,6 +60,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [selectedColour, setSelectedColour] = useState<string>(product.availableColours[0] || 'Classic Black');
   const [quantity, setQuantity] = useState(1);
   const [addedAnimation, setAddedAnimation] = useState(false);
+
+  // Interactive Streetwear Viewer Modes: 'studio' | '360' | 'fabric'
+  const [viewMode, setViewMode] = useState<'studio' | '360' | 'fabric'>('studio');
+  const [rotationAngle, setRotationAngle] = useState(0); // 0 to 360 deg
+  const [fabricMacroZoom, setFabricMacroZoom] = useState(2.2); // 1.5x to 3.5x macro
+  const [activeCallout, setActiveCallout] = useState<string | null>('weight');
 
   // Magnifying glass / pinch-to-zoom interactive state
   const [isZoomed, setIsZoomed] = useState(false);
@@ -118,82 +141,394 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Left Side: Product Gallery */}
+        {/* Left Side: Product Gallery & Interactive Streetwear Inspector */}
         <div className="md:w-1/2 bg-black p-4 sm:p-6 flex flex-col justify-between">
-          <div
-            ref={imageContainerRef}
-            onMouseMove={handleMouseMove}
-            onMouseEnter={() => setIsZoomed(true)}
-            onMouseLeave={() => setIsZoomed(false)}
-            onClick={handleToggleZoom}
-            className={`relative aspect-square sm:aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 select-none ${
-              isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'
-            }`}
-            title="Hover or tap to zoom fabric & print detail"
-          >
-            <img
-              src={product.images[selectedImageIndex] || product.images[0]}
-              alt={product.name}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover object-center pointer-events-none transition-transform will-change-transform"
-              style={{
-                transform: isZoomed ? 'scale(2.2)' : 'scale(1)',
-                transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
-                transitionDuration: isZoomed ? '120ms' : '250ms',
-                transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)',
-              }}
-            />
-
-            {/* Badges */}
-            <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none">
-              {product.isNewDrop && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-black tracking-wider uppercase bg-orange-500 text-white shadow-lg">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  2026 Drop
-                </span>
-              )}
-              {product.isAuditedOriginal && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-md">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Audited Google Sites Price
-                </span>
-              )}
+          <div>
+            {/* Interactive View Mode Selector */}
+            <div className="flex items-center gap-1.5 mb-3 bg-zinc-900/90 p-1 rounded-2xl border border-zinc-800 text-xs select-none">
+              <button
+                type="button"
+                onClick={() => setViewMode('studio')}
+                className={`flex-1 py-1.5 px-2 rounded-xl font-bold flex items-center justify-center gap-1 transition-all ${
+                  viewMode === 'studio'
+                    ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5 text-blue-400" />
+                <span>Studio</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('360')}
+                className={`flex-1 py-1.5 px-2 rounded-xl font-bold flex items-center justify-center gap-1 transition-all ${
+                  viewMode === '360'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-orange-400'
+                }`}
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                <span>360° Drape</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('fabric')}
+                className={`flex-1 py-1.5 px-2 rounded-xl font-bold flex items-center justify-center gap-1 transition-all ${
+                  viewMode === 'fabric'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-emerald-400'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>200gsm Weave</span>
+              </button>
             </div>
 
-            {/* Wishlist toggle on image */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleWishlist(product.id);
-              }}
-              className={`absolute top-3 right-3 p-2.5 rounded-full backdrop-blur-md transition-colors z-20 ${
-                wishlisted
-                  ? 'bg-orange-500 text-white shadow-lg'
-                  : 'bg-black/70 text-white hover:text-orange-400'
-              }`}
-              title="Add to wishlist"
-            >
-              <Heart className={`w-4 h-4 ${wishlisted ? 'fill-current' : ''}`} />
-            </button>
+            {/* MODE 1: STUDIO SHOT WITH 2.2X ZOOM LENS */}
+            {viewMode === 'studio' && (
+              <div
+                ref={imageContainerRef}
+                onMouseMove={handleMouseMove}
+                onMouseEnter={() => setIsZoomed(true)}
+                onMouseLeave={() => setIsZoomed(false)}
+                onClick={handleToggleZoom}
+                className={`relative aspect-square sm:aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 select-none ${
+                  isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'
+                }`}
+                title="Hover or tap to zoom fabric & print detail"
+              >
+                <img
+                  src={product.images[selectedImageIndex] || product.images[0]}
+                  alt={product.name}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover object-center pointer-events-none transition-transform will-change-transform"
+                  style={{
+                    transform: isZoomed ? 'scale(2.2)' : 'scale(1)',
+                    transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+                    transitionDuration: isZoomed ? '120ms' : '250ms',
+                    transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)',
+                  }}
+                />
 
-            {/* Magnifying Glass Indicator Badge */}
-            <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-zinc-700/80 text-[10px] text-zinc-300 font-semibold flex items-center gap-1.5 z-10 pointer-events-none shadow-lg">
-              {isZoomed ? (
-                <>
-                  <ZoomOut className="w-3.5 h-3.5 text-orange-400" />
-                  <span>2.2x Fabric Zoom</span>
-                </>
-              ) : (
-                <>
-                  <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Hover / Tap to Zoom</span>
-                </>
-              )}
-            </div>
+                {/* Badges */}
+                <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none">
+                  {product.isNewDrop && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-black tracking-wider uppercase bg-orange-500 text-white shadow-lg">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      2026 Drop
+                    </span>
+                  )}
+                  {product.isAuditedOriginal && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-md">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Audited Google Sites Price
+                    </span>
+                  )}
+                </div>
+
+                {/* Wishlist toggle on image */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleWishlist(product.id);
+                  }}
+                  className={`absolute top-3 right-3 p-2.5 rounded-full backdrop-blur-md transition-colors z-20 ${
+                    wishlisted
+                      ? 'bg-orange-500 text-white shadow-lg'
+                      : 'bg-black/70 text-white hover:text-orange-400'
+                  }`}
+                  title="Add to wishlist"
+                >
+                  <Heart className={`w-4 h-4 ${wishlisted ? 'fill-current' : ''}`} />
+                </button>
+
+                {/* Magnifying Glass Indicator Badge */}
+                <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-zinc-700/80 text-[10px] text-zinc-300 font-semibold flex items-center gap-1.5 z-10 pointer-events-none shadow-lg">
+                  {isZoomed ? (
+                    <>
+                      <ZoomOut className="w-3.5 h-3.5 text-orange-400" />
+                      <span>2.2x Fabric Zoom</span>
+                    </>
+                  ) : (
+                    <>
+                      <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Hover / Tap to Zoom</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* MODE 2: 360° INTERACTIVE STREETWEAR DRAPE VIEWER */}
+            {viewMode === '360' && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                <div className="relative aspect-square sm:aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-b from-zinc-900 to-black border border-zinc-800 flex items-center justify-center p-4">
+                  {/* Rotating 3D Garment Image */}
+                  <div
+                    className="w-full h-full flex items-center justify-center transition-transform duration-150 will-change-transform"
+                    style={{
+                      perspective: '700px',
+                    }}
+                  >
+                    <img
+                      src={
+                        rotationAngle >= 90 && rotationAngle <= 270 && product.images.length > 1
+                          ? product.images[1]
+                          : product.images[0]
+                      }
+                      alt={product.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover rounded-xl shadow-2xl transition-transform duration-100"
+                      style={{
+                        transform: `rotateY(${((rotationAngle % 180) - 90) * 0.45}deg)`,
+                      }}
+                    />
+                  </div>
+
+                  {/* Rotation Angle Overlay Badge */}
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/85 backdrop-blur-md border border-zinc-700 text-[11px] font-mono font-bold text-orange-400 flex items-center gap-1.5 shadow-md">
+                    <RotateCw className="w-3.5 h-3.5 text-orange-400" />
+                    <span>{rotationAngle}° Perspective</span>
+                  </div>
+
+                  {/* Drape Silhouette Tag */}
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/85 backdrop-blur-md border border-zinc-700 text-[10px] font-bold text-white uppercase tracking-wider">
+                    {rotationAngle < 45 || rotationAngle >= 315
+                      ? 'Front View'
+                      : rotationAngle < 135
+                      ? 'Right Profile Drape'
+                      : rotationAngle < 225
+                      ? 'Back View & Screen Print'
+                      : 'Left Profile Drape'}
+                  </div>
+
+                  {/* Drag Prompt */}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/85 backdrop-blur-md border border-zinc-700 text-[10px] text-zinc-300 font-semibold whitespace-nowrap shadow-lg">
+                    Drag slider below to spin garment
+                  </div>
+                </div>
+
+                {/* 360 Rotation Controls */}
+                <div className="p-3 bg-zinc-900/90 rounded-2xl border border-zinc-800 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs text-zinc-400 font-bold">
+                    <span>Rotation Angle:</span>
+                    <span className="font-mono text-orange-400">{rotationAngle}°</span>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    step="5"
+                    value={rotationAngle}
+                    onChange={(e) => setRotationAngle(Number(e.target.value))}
+                    className="w-full accent-orange-500 cursor-pointer h-2 bg-zinc-800 rounded-lg"
+                  />
+
+                  {/* 4 Angle Quick-Pill Presets */}
+                  <div className="grid grid-cols-4 gap-1 pt-1 text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setRotationAngle(0)}
+                      className={`py-1 rounded-lg border transition-colors ${
+                        rotationAngle === 0
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
+                      }`}
+                    >
+                      Front (0°)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRotationAngle(90)}
+                      className={`py-1 rounded-lg border transition-colors ${
+                        rotationAngle === 90
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
+                      }`}
+                    >
+                      Side (90°)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRotationAngle(180)}
+                      className={`py-1 rounded-lg border transition-colors ${
+                        rotationAngle === 180
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
+                      }`}
+                    >
+                      Back (180°)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRotationAngle(270)}
+                      className={`py-1 rounded-lg border transition-colors ${
+                        rotationAngle === 270
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
+                      }`}
+                    >
+                      Drape (270°)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODE 3: 180-200GSM COMBED COTTON WEAVE MACRO LENS */}
+            {viewMode === 'fabric' && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                <div className="relative aspect-square sm:aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 flex items-center justify-center select-none">
+                  {/* Magnified Macro Weave Canvas */}
+                  <div
+                    className="w-full h-full relative overflow-hidden flex items-center justify-center transition-transform duration-200"
+                    style={{ transform: `scale(${fabricMacroZoom})` }}
+                  >
+                    <img
+                      src={product.images[0]}
+                      alt="Fabric Weave"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover filter contrast-125 brightness-95"
+                    />
+                    {/* Simulated High-Density Combed Cotton Knit Texture Grid */}
+                    <div
+                      className="absolute inset-0 opacity-40 mix-blend-overlay pointer-events-none"
+                      style={{
+                        backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+                        backgroundSize: '8px 8px',
+                      }}
+                    />
+                  </div>
+
+                  {/* Interactive Macro Callout Pins */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {/* Weight Pin */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveCallout('weight')}
+                      className="absolute top-1/4 left-1/3 pointer-events-auto p-1.5 rounded-full bg-emerald-500 text-white shadow-lg animate-pulse ring-4 ring-emerald-500/20"
+                      title="180–200gsm Combed Cotton"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Ribbed Collar Pin */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveCallout('collar')}
+                      className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-auto p-1.5 rounded-full bg-blue-500 text-white shadow-lg animate-pulse ring-4 ring-blue-500/20"
+                      title="Reinforced Ribbed Crewneck"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Twin Needle Hem Pin */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveCallout('stitching')}
+                      className="absolute bottom-16 right-1/4 pointer-events-auto p-1.5 rounded-full bg-orange-500 text-white shadow-lg animate-pulse ring-4 ring-orange-500/20"
+                      title="Twin-Needle Lockstitch"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Zoom Level Indicator */}
+                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/85 backdrop-blur-md border border-zinc-700 text-[11px] font-mono text-emerald-400 font-bold">
+                    {fabricMacroZoom.toFixed(1)}x Macro Knit
+                  </div>
+                </div>
+
+                {/* Macro Inspection Details Card */}
+                <div className="p-3 bg-zinc-900/90 rounded-2xl border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-black text-emerald-400 tracking-wider">
+                      Fabric Spec Callout:
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <span>Zoom:</span>
+                      <input
+                        type="range"
+                        min="1.5"
+                        max="3.5"
+                        step="0.1"
+                        value={fabricMacroZoom}
+                        onChange={(e) => setFabricMacroZoom(Number(e.target.value))}
+                        className="w-20 accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {activeCallout === 'weight' && (
+                    <div className="text-xs text-zinc-300">
+                      <strong className="text-white block font-bold">
+                        180–200gsm Heavyweight Combed Cotton
+                      </strong>
+                      <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                        Substantial South African streetwear weight. Structured, boxy silhouette that holds shape without clinging.
+                      </p>
+                    </div>
+                  )}
+
+                  {activeCallout === 'collar' && (
+                    <div className="text-xs text-zinc-300">
+                      <strong className="text-white block font-bold">
+                        Reinforced 1x1 Rib Crew Neckline
+                      </strong>
+                      <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                        Engineered with spandex memory weave to prevent stretching or sagging after repeated wears and washes.
+                      </p>
+                    </div>
+                  )}
+
+                  {activeCallout === 'stitching' && (
+                    <div className="text-xs text-zinc-300">
+                      <strong className="text-white block font-bold">
+                        Twin-Needle Lockstitch Hems
+                      </strong>
+                      <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                        Double-stitched sleeve cuffs and waist hem for industrial strength and clean streetwear finish.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCallout('weight')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                        activeCallout === 'weight' ? 'bg-emerald-600 text-white' : 'bg-black text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Weight
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveCallout('collar')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                        activeCallout === 'collar' ? 'bg-blue-600 text-white' : 'bg-black text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Collar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveCallout('stitching')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                        activeCallout === 'stitching' ? 'bg-orange-500 text-white' : 'bg-black text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Stitching
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Thumbnails row if multiple images exist */}
-          {product.images.length > 1 && (
+          {/* Thumbnails row if multiple images exist (Only in Studio view) */}
+          {viewMode === 'studio' && product.images.length > 1 && (
             <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1">
               {product.images.map((img, idx) => (
                 <button

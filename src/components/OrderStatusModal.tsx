@@ -11,11 +11,14 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { SubmittedOrder, BrandConfig } from '../types';
 import { formatZAR, buildWhatsAppLink } from '../utils/whatsapp';
 import { getLocalOrders, findOrderByReference } from '../utils/orderStorage';
+import { PrintableInvoiceModal } from './PrintableInvoiceModal';
 
 interface OrderStatusModalProps {
   isOpen: boolean;
@@ -34,6 +37,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
   const [currentOrder, setCurrentOrder] = useState<SubmittedOrder | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [recentOrders, setRecentOrders] = useState<SubmittedOrder[]>([]);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -59,16 +63,34 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
     if (!searchInput.trim()) return;
 
     setHasSearched(true);
-    const found = findOrderByReference(searchInput);
+    const query = searchInput.trim().replace(/^#/, '');
+    const cleanDigits = query.replace(/\D/g, '');
+
+    // 1. Exact or partial reference match
+    const found = findOrderByReference(query);
     if (found) {
       setCurrentOrder(found);
       return;
     }
 
-    // Fallback: Query server for order status
+    // 2. Lookup in local orders by phone or customer name
+    const allLocal = getLocalOrders();
+    const foundLocal = allLocal.find((ord) => {
+      const matchRef = ord.orderNumber.toLowerCase() === query.toLowerCase();
+      const ordDigits = ord.customer.phoneOrWhatsApp.replace(/\D/g, '');
+      const matchPhone = cleanDigits.length >= 7 && ordDigits.includes(cleanDigits);
+      const matchName = ord.customer.fullName.toLowerCase().includes(query.toLowerCase());
+      return matchRef || matchPhone || matchName;
+    });
+
+    if (foundLocal) {
+      setCurrentOrder(foundLocal);
+      return;
+    }
+
+    // 3. Fallback: Query server for order status
     try {
-      const cleanRef = searchInput.trim().replace(/^#/, '');
-      const res = await fetch(`/api/payfast/order-status/${encodeURIComponent(cleanRef)}`);
+      const res = await fetch(`/api/payfast/order-status/${encodeURIComponent(query)}`);
       if (res.ok) {
         const data: any = await res.json();
         if (data.success) {
@@ -182,10 +204,10 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
                 <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  placeholder="Enter Order Reference (e.g. LASS-1234)..."
+                  placeholder="Enter Order Ref (e.g. LASS-1234) or Cellphone..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 font-mono uppercase"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 font-mono"
                 />
               </div>
               <button
@@ -223,7 +245,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
               {/* Order Status Banner */}
               <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-black text-lg text-orange-400">
                       #{currentOrder.orderNumber}
                     </span>
@@ -254,11 +276,21 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
                   </p>
                 </div>
 
-                <div className="text-left sm:text-right">
-                  <span className="text-[11px] text-zinc-400 block font-semibold">Total Value</span>
-                  <span className="font-display font-black text-xl text-white">
-                    {formatZAR(currentOrder.estimatedTotal)}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <div className="text-left sm:text-right">
+                    <span className="text-[11px] text-zinc-400 block font-semibold">Total Value</span>
+                    <span className="font-display font-black text-xl text-white">
+                      {formatZAR(currentOrder.estimatedTotal)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsInvoiceModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors border border-zinc-700 shrink-0 shadow-sm"
+                    title="Print tax invoice & packing slip"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="hidden sm:inline">Print Slip</span>
+                  </button>
                 </div>
               </div>
 
@@ -440,6 +472,14 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Printable Invoice & Packing Slip Modal */}
+      <PrintableInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        order={currentOrder}
+        brandConfig={brandConfig}
+      />
     </div>
   );
 };

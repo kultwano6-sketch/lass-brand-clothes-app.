@@ -34,6 +34,7 @@ import { formatZAR, generateOrderReference, generateWhatsAppOrderMessage, buildW
 import { saveLocalOrder } from '../utils/orderStorage';
 import { POPULAR_PAXI_BRANCHES, PaxiBranch, validatePaxiBranchSelection } from '../data/paxiBranches';
 import { PaxiStoreLocatorModal } from './PaxiStoreLocatorModal';
+import { PrintableInvoiceModal } from './PrintableInvoiceModal';
 
 const SAVED_CUSTOMER_PROFILE_KEY = 'lass_saved_customer_profile_v1';
 
@@ -56,6 +57,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Step: 'details' -> 'payment' -> 'success'
   const [currentStep, setCurrentStep] = useState<'details' | 'payment' | 'success'>('details');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Customer details with fast checkout local memory
   const [customer, setCustomer] = useState<OrderCustomerDetails>(() => {
@@ -948,6 +950,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>Open in WhatsApp</span>
                 </a>
                 <button
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs flex items-center justify-center gap-2 border border-zinc-700 transition-colors"
+                >
+                  <Printer className="w-4 h-4 text-orange-400" />
+                  <span>Print Invoice Slip</span>
+                </button>
+                <button
                   onClick={onClose}
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs"
                 >
@@ -966,6 +975,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         onSelectBranch={handleSelectPaxiBranch}
         selectedBranchCode={paxiValidation.matchedBranch?.code}
       />
+
+      {/* Printable Invoice & Packing Slip Modal */}
+      {finalOrder && (
+        <PrintableInvoiceModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          order={finalOrder}
+          brandConfig={brandConfig}
+        />
+      )}
     </div>
   );
 };
