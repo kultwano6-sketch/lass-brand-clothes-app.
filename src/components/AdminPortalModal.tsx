@@ -48,6 +48,7 @@ import {
   DEMO_SAMPLE_ORDERS,
   ORDERS_STORAGE_KEY
 } from '../utils/orderStorage';
+import { SalesAnalyticsView } from './SalesAnalyticsView';
 
 interface AdminPortalModalProps {
   isOpen: boolean;
@@ -86,8 +87,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     return existing;
   });
 
-  // Active Navigation Tab: Segmented control between Order History, Inventory Management, and Site Configuration
-  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'config'>('orders');
+  // Active Navigation Tab: Segmented control between Orders, Inventory, Analytics, and Site Configuration
+  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'analytics' | 'config'>('orders');
   const [configForm, setConfigForm] = useState<BrandConfig>(brandConfig);
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const [notificationMsg, setNotificationMsg] = useState('');
@@ -868,7 +869,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 <nav
                   role="tablist"
                   aria-label="Admin command center views"
-                  className="w-full sm:w-auto p-1 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 shadow-inner grid grid-cols-3 sm:inline-flex items-center gap-1 select-none"
+                  className="w-full sm:w-auto p-1 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 shadow-inner grid grid-cols-2 sm:inline-flex items-center gap-1 select-none"
                 >
                   {/* Segment 1: Order History */}
                   <button
@@ -908,7 +909,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     }`}
                   >
                     <Boxes className={`w-4 h-4 shrink-0 ${activeTab === 'inventory' ? 'text-blue-400' : 'text-zinc-400'}`} />
-                    <span className="truncate">Inventory Management</span>
+                    <span className="truncate">Inventory</span>
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
                       activeTab === 'inventory'
                         ? 'bg-blue-500/25 text-blue-300 border border-blue-500/40'
@@ -923,7 +924,27 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     )}
                   </button>
 
-                  {/* Segment 3: Site Configuration */}
+                  {/* Segment 3: Sales Analytics Dashboard */}
+                  <button
+                    role="tab"
+                    id="tab-analytics"
+                    aria-selected={activeTab === 'analytics'}
+                    aria-controls="tabpanel-analytics"
+                    onClick={() => setActiveTab('analytics')}
+                    className={`px-2.5 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${
+                      activeTab === 'analytics'
+                        ? 'bg-zinc-800 text-amber-400 shadow-md border border-amber-500/40 ring-1 ring-amber-500/20'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                  >
+                    <TrendingUp className={`w-4 h-4 shrink-0 ${activeTab === 'analytics' ? 'text-amber-400' : 'text-zinc-400'}`} />
+                    <span className="truncate">Analytics</span>
+                    <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Live
+                    </span>
+                  </button>
+
+                  {/* Segment 4: Site Configuration */}
                   <button
                     role="tab"
                     id="tab-config"
@@ -937,7 +958,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     }`}
                   >
                     <Sliders className={`w-4 h-4 shrink-0 ${activeTab === 'config' ? 'text-emerald-400' : 'text-zinc-400'}`} />
-                    <span className="truncate">Site Configuration</span>
+                    <span className="truncate">Site Config</span>
                   </button>
                 </nav>
 
@@ -1695,7 +1716,18 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 3: SITE CONFIGURATION */}
+              {/* TAB 3: SALES ANALYTICS DASHBOARD */}
+              {activeTab === 'analytics' && (
+                <div id="tabpanel-analytics" role="tabpanel" aria-labelledby="tab-analytics" className="max-w-6xl">
+                  <SalesAnalyticsView
+                    orders={savedOrders}
+                    products={localProducts}
+                    brandConfig={brandConfig}
+                  />
+                </div>
+              )}
+
+              {/* TAB 4: SITE CONFIGURATION */}
               {activeTab === 'config' && (
                 <div id="tabpanel-config" role="tabpanel" aria-labelledby="tab-config" className="space-y-6 max-w-4xl">
                   {/* Executive Performance Snapshot */}
