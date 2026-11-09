@@ -1,12 +1,12 @@
 {
   "id": "/",
-  "name": "LASS",
-  "short_name": "LASS",
-  "description": "South African Kasi streetwear mobile shopping app featuring printed t-shirts, 2026 drops, WhatsApp ordering, and PAXI PEP delivery.",
+  "name": "LASS Brand Clothes",
+  "short_name": "LASS Clothes",
+  "description": "LASS Brand Clothes – South African Kasi streetwear mobile shopping app featuring printed t-shirts, 2026 drops, WhatsApp ordering, and PAXI PEP delivery.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#09090b",
   "theme_color": "#047857",
   "categories": ["shopping", "lifestyle", "fashion"],
@@ -28,6 +28,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/logo.svg",

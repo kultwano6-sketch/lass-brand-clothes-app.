@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({
     }
   };
   return (
-    <footer className="w-full bg-black border-t border-zinc-800 pt-12 pb-16 text-zinc-300 text-xs">
+    <footer className="w-full bg-black border-t border-zinc-800 pt-12 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] text-zinc-300 text-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
         {/* Main Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

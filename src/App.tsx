@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Sparkles, ArrowRight, Truck, MessageSquare, ShieldCheck, Flame, SlidersHorizontal, Grid, Columns, Package, CreditCard } from 'lucide-react';
 import { Product, BrandConfig, SubmittedOrder } from './types';
 import { INITIAL_PRODUCTS } from './data/initialProducts';
@@ -25,6 +25,17 @@ import { AppIconModal } from './components/AppIconModal';
 import { PaymentStatusPage } from './components/PaymentStatusPage';
 import { SearchAndFilters, SortOption } from './components/SearchAndFilters';
 import { ReviewsSection } from './components/ReviewsSection';
+import { ExitConfirmationModal } from './components/ExitConfirmationModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { PromoBanner } from './components/PromoBanner';
+import { LassDropsView } from './components/LassDropsView';
+import {
+  initAppNavigation,
+  pushScreenState,
+  safeNavigateBack,
+  restoreScrollPosition,
+  AppNavigationState,
+} from './utils/navigation';
 
 const PRODUCTS_STORAGE_KEY = 'lass_products_catalog_v1';
 const BRAND_CONFIG_STORAGE_KEY = 'lass_brand_config_v1';
@@ -96,6 +107,8 @@ function MainShopContent() {
   const [isAppIconOpen, setIsAppIconOpen] = useState<boolean>(false);
   const [isInstallAppOpen, setIsInstallAppOpen] = useState<boolean>(false);
   const [orderStatusRef, setOrderStatusRef] = useState<string>('');
+  const [isExitModalOpen, setIsExitModalOpen] = useState<boolean>(false);
+  const [isDropsOpen, setIsDropsOpen] = useState<boolean>(false);
 
   // PayFast Return / Cancel Route State
   const [paymentView, setPaymentView] = useState<{
@@ -125,9 +138,461 @@ function MainShopContent() {
 
   const { isCartOpen, setIsCartOpen } = useCart();
 
+  // Navigation tracking refs to avoid stale closures in popstate listener
+  const savedScrollYRef = useRef<number>(0);
+  const activeCategoryRef = useRef<string>(activeCategory);
+  const productsRef = useRef<Product[]>(products);
+  const isExitModalOpenRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    activeCategoryRef.current = activeCategory;
+  }, [activeCategory]);
+
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
+
+  useEffect(() => {
+    isExitModalOpenRef.current = isExitModalOpen;
+  }, [isExitModalOpen]);
+
+  // Initialize Android Back navigation stack with exit guard
+  useEffect(() => {
+    initAppNavigation(activeCategory);
+  }, []);
+
+  // Central Popstate Router for Android System Back Button & Gesture Navigation
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      const state = e.state as AppNavigationState | null;
+
+      // 1. Android Back / PWA Back pressed on root screen -> trigger Exit Confirmation
+      if (state && (state as any).type === 'exit_guard') {
+        const isIOSBrowser =
+          typeof window !== 'undefined' &&
+          /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase()) &&
+          !(window.navigator as any).standalone &&
+          !window.matchMedia('(display-mode: standalone)').matches;
+
+        // In normal iOS Safari browser tab, allow natural edge-swipe without interference
+        if (isIOSBrowser) {
+          window.history.back();
+          return;
+        }
+
+        setIsExitModalOpen(true);
+        // Push root screen back so another Back button press will not terminate abruptly without user choice
+        window.history.pushState(
+          {
+            __lass: true,
+            view: 'home',
+            category: activeCategoryRef.current,
+            scrollY: window.scrollY,
+          },
+          '',
+          '/'
+        );
+        return;
+      }
+
+      // If Exit Confirmation Dialog is currently open and Back was pressed, dismiss dialog
+      if (isExitModalOpenRef.current) {
+        setIsExitModalOpen(false);
+      }
+
+      // 2. Sub-modal check: inner sub-modals (fit calculator, paxi locator, print slip) handle themselves
+      if (state?.subModal) {
+        return;
+      }
+
+      if (!state || !state.__lass) {
+        // Fallback to clean root state
+        setSelectedProduct(null);
+        setIsCartOpen(false);
+        setIsCheckoutOpen(false);
+        setIsOrderStatusOpen(false);
+        setIsWishlistOpen(false);
+        setIsAdminPortalOpen(false);
+        setIsSizeGuideOpen(false);
+        setIsPaxiInfoOpen(false);
+        setIsAuditModalOpen(false);
+        setIsAppIconOpen(false);
+        setIsInstallAppOpen(false);
+        return;
+      }
+
+      // 3. Dispatch according to active screen in history
+      switch (state.view) {
+        case 'home':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          setIsDropsOpen(false);
+          if (activeCategoryRef.current !== 'all') {
+            setActiveCategory('all');
+          }
+          if (typeof state.scrollY === 'number') {
+            restoreScrollPosition(state.scrollY);
+          }
+          break;
+
+        case 'drops':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          setIsDropsOpen(true);
+          break;
+
+        case 'category':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          if (state.category && state.category !== activeCategoryRef.current) {
+            setActiveCategory(state.category);
+          }
+          if (typeof state.scrollY === 'number') {
+            restoreScrollPosition(state.scrollY);
+          }
+          break;
+
+        case 'product':
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          if (state.productId) {
+            const prod = productsRef.current.find((p) => p.id === state.productId);
+            if (prod) setSelectedProduct(prod);
+          }
+          break;
+
+        case 'cart':
+          setSelectedProduct(null);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          setIsCartOpen(true);
+          break;
+
+        case 'checkout':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          setIsCheckoutOpen(true);
+          break;
+
+        case 'order_status':
+        case 'order-status':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsWishlistOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          if (state.orderRef) setOrderStatusRef(state.orderRef);
+          setIsOrderStatusOpen(true);
+          break;
+
+        case 'wishlist':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsAdminPortalOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          setIsWishlistOpen(true);
+          break;
+
+        case 'admin_portal':
+        case 'admin':
+          setSelectedProduct(null);
+          setIsCartOpen(false);
+          setIsCheckoutOpen(false);
+          setIsOrderStatusOpen(false);
+          setIsWishlistOpen(false);
+          setIsSizeGuideOpen(false);
+          setIsPaxiInfoOpen(false);
+          setIsAuditModalOpen(false);
+          setIsAppIconOpen(false);
+          setIsInstallAppOpen(false);
+          setHasOwnerUnlocked(true);
+          setIsAdminPortalOpen(true);
+          break;
+
+        case 'size_guide':
+        case 'size-guide':
+          setIsSizeGuideOpen(true);
+          break;
+
+        case 'paxi_info':
+        case 'paxi-info':
+          setIsPaxiInfoOpen(true);
+          break;
+
+        case 'audit_modal':
+        case 'audit':
+          setIsAuditModalOpen(true);
+          break;
+
+        case 'app_icon':
+        case 'app-icon':
+          setIsAppIconOpen(true);
+          break;
+
+        case 'install_app':
+        case 'install':
+          setIsInstallAppOpen(true);
+          break;
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Safe Navigation Actions (Home -> Product, Category, Cart, Checkout, etc.)
+  const handleSelectProduct = (product: Product) => {
+    savedScrollYRef.current = window.scrollY;
+    pushScreenState('product', {
+      productId: product.id,
+      category: activeCategory,
+      previousView: activeCategory === 'all' ? 'home' : 'category',
+      scrollY: savedScrollYRef.current,
+    });
+    setSelectedProduct(product);
+  };
+
+  const handleCloseProduct = () => {
+    setSelectedProduct(null);
+    safeNavigateBack('product', () => {
+      setSelectedProduct(null);
+      restoreScrollPosition(savedScrollYRef.current);
+    });
+  };
+
+  const handleSelectCategory = (cat: string) => {
+    if (cat === activeCategory) return;
+    savedScrollYRef.current = window.scrollY;
+    if (cat === 'all') {
+      pushScreenState('home', { category: 'all', scrollY: 0 });
+    } else {
+      pushScreenState('category', { category: cat, scrollY: savedScrollYRef.current });
+    }
+    setActiveCategory(cat);
+  };
+
+  const handleOpenCart = () => {
+    pushScreenState('cart', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsCartOpen(true);
+  };
+
+  const handleCloseCart = () => {
+    setIsCartOpen(false);
+    safeNavigateBack('cart', () => setIsCartOpen(false));
+  };
+
+  const handleProceedToCheckout = () => {
+    pushScreenState('checkout', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsCartOpen(false);
+    setIsCheckoutOpen(true);
+  };
+
+  const handleCloseCheckout = () => {
+    setIsCheckoutOpen(false);
+    safeNavigateBack('checkout', () => setIsCheckoutOpen(false));
+  };
+
+  const handleOpenOrderStatus = (ref?: string) => {
+    setOrderStatusRef(ref || '');
+    pushScreenState('order_status', {
+      orderRef: ref,
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsOrderStatusOpen(true);
+  };
+
+  const handleCloseOrderStatus = () => {
+    setIsOrderStatusOpen(false);
+    safeNavigateBack('order_status', () => setIsOrderStatusOpen(false));
+  };
+
+  const handleOpenWishlist = () => {
+    pushScreenState('wishlist', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsWishlistOpen(true);
+  };
+
+  const handleCloseWishlist = () => {
+    setIsWishlistOpen(false);
+    safeNavigateBack('wishlist', () => setIsWishlistOpen(false));
+  };
+
   const handleOpenOwnerPortal = () => {
     setHasOwnerUnlocked(true);
+    pushScreenState('admin_portal', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
     setIsAdminPortalOpen(true);
+  };
+
+  const handleCloseOwnerPortal = () => {
+    setIsAdminPortalOpen(false);
+    safeNavigateBack('admin_portal', () => setIsAdminPortalOpen(false));
+  };
+
+  const handleOpenSizeGuide = () => {
+    pushScreenState('size_guide', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsSizeGuideOpen(true);
+  };
+
+  const handleCloseSizeGuide = () => {
+    setIsSizeGuideOpen(false);
+    safeNavigateBack('size_guide', () => setIsSizeGuideOpen(false));
+  };
+
+  const handleOpenPaxiInfo = () => {
+    pushScreenState('paxi_info', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsPaxiInfoOpen(true);
+  };
+
+  const handleClosePaxiInfo = () => {
+    setIsPaxiInfoOpen(false);
+    safeNavigateBack('paxi_info', () => setIsPaxiInfoOpen(false));
+  };
+
+  const handleOpenAuditModal = () => {
+    pushScreenState('audit_modal', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsAuditModalOpen(true);
+  };
+
+  const handleCloseAuditModal = () => {
+    setIsAuditModalOpen(false);
+    safeNavigateBack('audit_modal', () => setIsAuditModalOpen(false));
+  };
+
+  const handleOpenAppIcon = () => {
+    pushScreenState('app_icon', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsAppIconOpen(true);
+  };
+
+  const handleCloseAppIcon = () => {
+    setIsAppIconOpen(false);
+    safeNavigateBack('app_icon', () => setIsAppIconOpen(false));
+  };
+
+  const handleOpenInstallApp = () => {
+    pushScreenState('install_app', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsInstallAppOpen(true);
+  };
+
+  const handleCloseInstallApp = () => {
+    setIsInstallAppOpen(false);
+    safeNavigateBack('install_app', () => setIsInstallAppOpen(false));
+  };
+
+  const handleOpenDrops = () => {
+    pushScreenState('drops', {
+      category: activeCategory,
+      scrollY: window.scrollY,
+    });
+    setIsDropsOpen(true);
+  };
+
+  const handleCloseDrops = () => {
+    setIsDropsOpen(false);
+    safeNavigateBack('drops', () => setIsDropsOpen(false));
+  };
+
+  const handleStayInStore = () => {
+    setIsExitModalOpen(false);
+  };
+
+  const handleExitStore = () => {
+    setIsExitModalOpen(false);
+    try {
+      window.close();
+    } catch {}
+    if (!window.closed) {
+      try {
+        window.history.go(-2);
+      } catch {}
+    }
   };
 
   // Discreet owner access via URL hash, query param, or Alt+O keyboard shortcut
@@ -147,7 +612,6 @@ function MainShopContent() {
     };
     checkHashAndParams();
     window.addEventListener('hashchange', checkHashAndParams);
-    window.addEventListener('popstate', checkHashAndParams);
 
     // Keyboard shortcut for owner: Alt + O
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -160,7 +624,6 @@ function MainShopContent() {
 
     return () => {
       window.removeEventListener('hashchange', checkHashAndParams);
-      window.removeEventListener('popstate', checkHashAndParams);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -229,6 +692,12 @@ function MainShopContent() {
       .sort((a, b) => {
         if (sortOption === 'price-asc') return a.price - b.price;
         if (sortOption === 'price-desc') return b.price - a.price;
+        if (sortOption === 'popularity') {
+          return (b.popularity || b.salesCount || 0) - (a.popularity || a.salesCount || 0);
+        }
+        if (sortOption === 'rating') {
+          return (b.rating || 5) - (a.rating || 5);
+        }
         if (sortOption === 'newest') {
           if (a.isNewDrop && !b.isNewDrop) return -1;
           if (!a.isNewDrop && b.isNewDrop) return 1;
@@ -265,25 +734,27 @@ function MainShopContent() {
   }, [products]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col selection:bg-orange-500 selection:text-white overflow-x-hidden w-full pb-[env(safe-area-inset-bottom,0px)]">
+      {/* Top Promotional Announcement Banner */}
+      <PromoBanner onOpenDrops={handleOpenDrops} />
+
       {/* Top Header */}
       <Header
         brandConfig={brandConfig}
-        onOpenAuditModal={() => setIsAuditModalOpen(true)}
+        onOpenAuditModal={handleOpenAuditModal}
         onOpenAdminPortal={handleOpenOwnerPortal}
-        onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
-        onOpenPaxiInfo={() => setIsPaxiInfoOpen(true)}
-        onOpenOrderStatus={() => {
-          setOrderStatusRef('');
-          setIsOrderStatusOpen(true);
-        }}
-        onSelectCategory={setActiveCategory}
+        onOpenSizeGuide={handleOpenSizeGuide}
+        onOpenPaxiInfo={handleOpenPaxiInfo}
+        onOpenOrderStatus={() => handleOpenOrderStatus('')}
+        onSelectCategory={handleSelectCategory}
         activeCategory={activeCategory}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        onOpenWishlist={() => setIsWishlistOpen(true)}
-        onOpenAppIcon={() => setIsAppIconOpen(true)}
-        onOpenInstallApp={() => setIsInstallAppOpen(true)}
+        onOpenWishlist={handleOpenWishlist}
+        onOpenAppIcon={handleOpenAppIcon}
+        onOpenInstallApp={handleOpenInstallApp}
+        onOpenCart={handleOpenCart}
+        onOpenDrops={handleOpenDrops}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -299,9 +770,14 @@ function MainShopContent() {
             onOpenTrackOrder={(ref) => {
               setPaymentView(null);
               window.history.pushState({}, '', '/');
-              setOrderStatusRef(ref);
-              setIsOrderStatusOpen(true);
+              handleOpenOrderStatus(ref);
             }}
+          />
+        ) : isDropsOpen ? (
+          <LassDropsView
+            onBackToShop={handleCloseDrops}
+            onSelectProduct={(p) => handleSelectProduct(p)}
+            allProducts={products}
           />
         ) : (
           <>
@@ -328,7 +804,7 @@ function MainShopContent() {
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={() => {
-                  setActiveCategory('2026-new-drops');
+                  handleSelectCategory('2026-new-drops');
                   const el = document.getElementById('catalog-section');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
@@ -340,7 +816,7 @@ function MainShopContent() {
 
               <button
                 onClick={() => {
-                  setActiveCategory('t-shirts');
+                  handleSelectCategory('t-shirts');
                   const el = document.getElementById('catalog-section');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
@@ -353,10 +829,7 @@ function MainShopContent() {
             {/* Reassurance Badges in Green, White, Blue, Orange */}
             <div className="pt-4 border-t border-emerald-900/40 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-zinc-300">
               <button
-                onClick={() => {
-                  setOrderStatusRef('');
-                  setIsOrderStatusOpen(true);
-                }}
+                onClick={() => handleOpenOrderStatus('')}
                 className="flex items-center gap-1.5 hover:text-orange-300 text-orange-400 font-bold transition-colors"
                 title="Track your order status"
               >
@@ -364,14 +837,14 @@ function MainShopContent() {
                 <span>Track Manual Order (#LASS-XXXX)</span>
               </button>
               <button
-                onClick={() => setIsPaxiInfoOpen(true)}
+                onClick={handleOpenPaxiInfo}
                 className="flex items-center gap-1.5 hover:text-white text-blue-300 font-medium transition-colors"
               >
                 <Truck className="w-4 h-4 text-blue-400" />
                 <span>PAXI PEP Pickup (R60)</span>
               </button>
               <button
-                onClick={() => setIsAuditModalOpen(true)}
+                onClick={handleOpenAuditModal}
                 className="flex items-center gap-1.5 hover:text-white text-emerald-300 font-medium transition-colors"
               >
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -429,7 +902,7 @@ function MainShopContent() {
           <SearchAndFilters
             categories={categoriesList}
             activeCategory={activeCategory}
-            onSelectCategory={setActiveCategory}
+            onSelectCategory={handleSelectCategory}
             sortOption={sortOption}
             onSelectSort={setSortOption}
             searchQuery={searchQuery}
@@ -453,7 +926,7 @@ function MainShopContent() {
               </p>
               <button
                 onClick={() => {
-                  setActiveCategory('all');
+                  handleSelectCategory('all');
                   setSelectedPrintType('all');
                   setPriceRange('all');
                   setSearchQuery('');
@@ -475,7 +948,7 @@ function MainShopContent() {
                 <ProductCard
                   key={product.id}
                   product={product}
-                  onSelect={(p) => setSelectedProduct(p)}
+                  onSelect={(p) => handleSelectProduct(p)}
                 />
               ))}
             </div>
@@ -500,73 +973,69 @@ function MainShopContent() {
       {/* Footer (No client-visible admin links) */}
       <Footer
         brandConfig={brandConfig}
-        onOpenAuditModal={() => setIsAuditModalOpen(true)}
-        onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
-        onOpenPaxiInfo={() => setIsPaxiInfoOpen(true)}
-        onOpenOrderStatus={() => {
-          setOrderStatusRef('');
-          setIsOrderStatusOpen(true);
-        }}
+        onOpenAuditModal={handleOpenAuditModal}
+        onOpenSizeGuide={handleOpenSizeGuide}
+        onOpenPaxiInfo={handleOpenPaxiInfo}
+        onOpenOrderStatus={() => handleOpenOrderStatus('')}
         onOpenAdminPortal={handleOpenOwnerPortal}
-        onOpenAppIcon={() => setIsAppIconOpen(true)}
-        onOpenInstallApp={() => setIsInstallAppOpen(true)}
+        onOpenAppIcon={handleOpenAppIcon}
+        onOpenInstallApp={handleOpenInstallApp}
       />
 
       {/* Modals & Drawers */}
-      <ProductDetailModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        brandConfig={brandConfig}
-        onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
-        onOpenPaxiInfo={() => setIsPaxiInfoOpen(true)}
-        allProducts={products}
-      />
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={handleCloseProduct}
+          brandConfig={brandConfig}
+          onOpenSizeGuide={handleOpenSizeGuide}
+          onOpenPaxiInfo={handleOpenPaxiInfo}
+          allProducts={products}
+        />
+      )}
 
       <CartDrawer
         isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        onProceedToCheckout={() => setIsCheckoutOpen(true)}
+        onClose={handleCloseCart}
+        onProceedToCheckout={handleProceedToCheckout}
         brandConfig={brandConfig}
       />
 
       <CheckoutModal
         isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
+        onClose={handleCloseCheckout}
         brandConfig={brandConfig}
-        onTrackOrder={(ref) => {
-          setOrderStatusRef(ref);
-          setIsOrderStatusOpen(true);
-        }}
+        onTrackOrder={(ref) => handleOpenOrderStatus(ref)}
       />
 
       <OrderStatusModal
         isOpen={isOrderStatusOpen}
-        onClose={() => setIsOrderStatusOpen(false)}
+        onClose={handleCloseOrderStatus}
         brandConfig={brandConfig}
         initialOrderRef={orderStatusRef}
       />
 
       <SizeGuideModal
         isOpen={isSizeGuideOpen}
-        onClose={() => setIsSizeGuideOpen(false)}
+        onClose={handleCloseSizeGuide}
         initialCategory={selectedProduct?.category || activeCategory}
       />
 
       <PaxiDeliveryInfoModal
         isOpen={isPaxiInfoOpen}
-        onClose={() => setIsPaxiInfoOpen(false)}
+        onClose={handleClosePaxiInfo}
         brandConfig={brandConfig}
       />
 
       <BrandAuditModal
         isOpen={isAuditModalOpen}
-        onClose={() => setIsAuditModalOpen(false)}
+        onClose={handleCloseAuditModal}
         brandConfig={brandConfig}
       />
 
       <AdminPortalModal
         isOpen={isAdminPortalOpen}
-        onClose={() => setIsAdminPortalOpen(false)}
+        onClose={handleCloseOwnerPortal}
         brandConfig={brandConfig}
         onUpdateBrandConfig={handleUpdateBrandConfig}
         products={products}
@@ -576,14 +1045,14 @@ function MainShopContent() {
 
       <WishlistModal
         isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
+        onClose={handleCloseWishlist}
         products={products}
-        onSelectProduct={(p) => setSelectedProduct(p)}
+        onSelectProduct={(p) => handleSelectProduct(p)}
       />
 
       <AppIconModal
         isOpen={isAppIconOpen}
-        onClose={() => setIsAppIconOpen(false)}
+        onClose={handleCloseAppIcon}
         brandConfig={brandConfig}
       />
 
@@ -595,7 +1064,7 @@ function MainShopContent() {
             Owner Active
           </span>
           <button
-            onClick={() => setIsAdminPortalOpen(true)}
+            onClick={handleOpenOwnerPortal}
             className="text-[11px] font-black text-orange-400 hover:text-orange-300 px-2.5 py-1 rounded-full bg-orange-500/15 hover:bg-orange-500/25 transition-colors shadow-sm"
           >
             Open Portal
@@ -613,8 +1082,19 @@ function MainShopContent() {
       {/* PWA Install Banner */}
       <PWAInstallBanner
         forceOpen={isInstallAppOpen}
-        onClose={() => setIsInstallAppOpen(false)}
+        onClose={handleCloseInstallApp}
       />
+
+      {/* Android System Back Exit Confirmation Modal */}
+      <ExitConfirmationModal
+        isOpen={isExitModalOpen}
+        onStay={handleStayInStore}
+        onExit={handleExitStore}
+        brandConfig={brandConfig}
+      />
+
+      {/* Cross-Platform Offline Connectivity Toast */}
+      <OfflineIndicator />
     </div>
   );
 }

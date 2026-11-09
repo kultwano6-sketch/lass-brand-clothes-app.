@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react';
-import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package, Smartphone, Download } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ShoppingBag, Heart, Search, Menu, X, ShieldCheck, Sparkles, Package, Smartphone, Download, Flame } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { BrandConfig } from '../types';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { pushSubModalState, safeNavigateBack } from '../utils/navigation';
+import { NotificationCenter } from './NotificationCenter';
 
 interface HeaderProps {
   brandConfig: BrandConfig;
@@ -19,6 +21,8 @@ interface HeaderProps {
   onOpenOrderStatus: () => void;
   onOpenAppIcon?: () => void;
   onOpenInstallApp?: () => void;
+  onOpenCart?: () => void;
+  onOpenDrops?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,11 +39,41 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOrderStatus,
   onOpenAppIcon,
   onOpenInstallApp,
+  onOpenCart,
+  onOpenDrops,
 }) => {
   const { totalItems, setIsCartOpen } = useCart();
   const { totalWishlistCount } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
+
+  // Close mobile drawer on Android Back button
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (mobileMenuOpen && (e.state as any)?.subModal !== 'mobile_menu') {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [mobileMenuOpen]);
+
+  const toggleMobileMenu = () => {
+    if (!mobileMenuOpen) {
+      pushSubModalState('mobile_menu');
+      setMobileMenuOpen(true);
+    } else {
+      safeNavigateBack('mobile_menu', () => setMobileMenuOpen(false));
+    }
+  };
+
+  const handleCartClick = () => {
+    if (onOpenCart) {
+      onOpenCart();
+    } else {
+      setIsCartOpen(true);
+    }
+  };
 
   // Discreet Owner Unlock: 5 clicks/taps on brand logo within 2.5s (silent, no visible counter)
   const clickCountRef = useRef(0);
@@ -69,15 +103,15 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800">
+    <header className="sticky top-0 z-40 w-full bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 pt-[env(safe-area-inset-top,0px)]">
 
       {/* Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Left: Mobile Menu Trigger & Brand Identity */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors"
+            onClick={toggleMobileMenu}
+            className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-300 hover:text-white rounded-xl hover:bg-zinc-900 transition-colors"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -146,6 +180,15 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Accessories
           </button>
+          {onOpenDrops && (
+            <button
+              onClick={onOpenDrops}
+              className="px-3 py-1.5 rounded-lg text-orange-400 hover:text-white hover:bg-orange-950/40 transition-colors flex items-center gap-1 font-bold text-xs"
+            >
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span>Drops Radar</span>
+            </button>
+          )}
           <button
             onClick={onOpenPaxiInfo}
             className="px-3 py-1.5 rounded-lg text-blue-300 hover:text-white hover:bg-blue-950/30 transition-colors flex items-center gap-1 font-semibold"
@@ -170,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </nav>
 
-        {/* Right Actions: Search, Track, Wishlist, Bag */}
+        {/* Right Actions: Search, Track, Notifications, Theme, Wishlist, Bag */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Search Toggle */}
           <div className="relative">
@@ -198,7 +241,7 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={() => setShowSearchInput(true)}
-                className="p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors"
                 title="Search products"
                 aria-label="Search"
               >
@@ -210,7 +253,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Track Order */}
           <button
             onClick={onOpenOrderStatus}
-            className="p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors hidden sm:flex items-center gap-1.5"
+            className="min-w-[44px] min-h-[44px] p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors hidden sm:flex items-center gap-1.5"
             title="Track WhatsApp Order"
             aria-label="Track Order"
           >
@@ -218,19 +261,22 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-xs font-bold text-zinc-200 hidden lg:inline">Track</span>
           </button>
 
+          {/* In-App Notification Center */}
+          <NotificationCenter onOpenDrops={onOpenDrops} onOpenTracking={onOpenOrderStatus} />
+
           {/* Daylight / Night Theme Switcher */}
           <ThemeSwitcher />
 
           {/* Wishlist */}
           <button
             onClick={onOpenWishlist}
-            className="relative p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors"
+            className="relative min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors"
             title="Wishlist"
             aria-label="Wishlist"
           >
             <Heart className="w-5 h-5" />
             {totalWishlistCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
                 {totalWishlistCount}
               </span>
             )}
@@ -238,8 +284,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Cart Bag with vibrant orange counter */}
           <button
-            onClick={() => setIsCartOpen(true)}
-            className="relative flex items-center gap-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-orange-500/60 rounded-xl text-white transition-all shadow-sm"
+            onClick={handleCartClick}
+            className="relative min-h-[44px] flex items-center gap-2 px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-orange-500/60 rounded-xl text-white transition-all shadow-sm active:scale-95"
             aria-label="Shopping Cart"
           >
             <ShoppingBag className="w-5 h-5 text-orange-400" />

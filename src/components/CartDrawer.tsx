@@ -79,7 +79,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
             aria-label="Close shopping bag"
           >
             <X className="w-5 h-5" />
@@ -100,47 +100,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         )}
 
-        {/* Dynamic Free PAXI Delivery Progress Bar (Free over R800) */}
-        {cart.length > 0 ? (
-          <div className="bg-gradient-to-r from-emerald-950/60 via-zinc-900 to-emerald-950/60 border-b border-emerald-800/40 p-3.5 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-white">
-                <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-                {subtotal >= 800 ? (
-                  <span className="text-emerald-400 flex items-center gap-1 font-bold">
-                    🎉 Free PAXI PEP Delivery Unlocked!
-                  </span>
-                ) : (
-                  <span>
-                    Add <strong className="text-orange-400 font-mono">{formatZAR(800 - subtotal)}</strong> for <strong className="text-emerald-400">FREE PAXI Delivery</strong>
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] font-mono text-zinc-400 font-bold">
-                {Math.min(100, Math.round((subtotal / 800) * 100))}%
-              </span>
-            </div>
-            {/* Progress bar */}
-            <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden relative">
-              <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  subtotal >= 800
-                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-sm shadow-emerald-500'
-                    : 'bg-gradient-to-r from-orange-500 to-amber-400'
-                }`}
-                style={{ width: `${Math.min(100, Math.round((subtotal / 800) * 100))}%` }}
-              />
-            </div>
+        {/* PAXI Courier Info Bar */}
+        <div className="bg-emerald-950/40 border-b border-emerald-800/40 px-4 py-2.5 flex items-center justify-between text-xs text-emerald-200">
+          <div className="flex items-center gap-2">
+            <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>PAXI PEP nationwide courier available at checkout</span>
           </div>
-        ) : (
-          <div className="bg-emerald-950/40 border-b border-emerald-800/40 px-4 py-2.5 flex items-center justify-between text-xs text-emerald-200">
-            <div className="flex items-center gap-2">
-              <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>PAXI PEP nationwide courier available at checkout</span>
-            </div>
-            <span className="font-bold text-orange-400 shrink-0">from R60</span>
-          </div>
-        )}
+          <span className="font-bold text-orange-400 shrink-0">from R60</span>
+        </div>
 
         {/* Cart Items List */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
@@ -218,10 +185,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                 </div>
 
-                {/* Remove Button */}
+                {/* Remove Button - 44px touch target */}
                 <button
                   onClick={() => removeFromCart(item.id)}
-                  className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800/80 rounded-lg transition-colors ml-0.5 shrink-0"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800/80 rounded-lg transition-colors ml-0.5 shrink-0"
                   title="Remove item"
                   aria-label="Remove item"
                 >
@@ -234,7 +201,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {/* Footer Subtotal & Checkout Button */}
         {cart.length > 0 && (
-          <div className="p-4 sm:p-5 border-t border-zinc-800 bg-zinc-900/90 space-y-3">
+          <div className="p-4 sm:p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] border-t border-zinc-800 bg-zinc-900/90 space-y-3">
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-zinc-400">
                 <span>Bag Subtotal</span>

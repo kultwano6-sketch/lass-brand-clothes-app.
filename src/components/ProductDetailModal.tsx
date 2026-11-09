@@ -23,6 +23,8 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { FitCalculatorModal } from './FitCalculatorModal';
 import { getSavedSizePreference } from '../utils/sizeCalculator';
+import { pushSubModalState, safeNavigateBack } from '../utils/navigation';
+import { ProductReviewsSection } from './ProductReviewsSection';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -33,7 +35,16 @@ interface ProductDetailModalProps {
   allProducts?: Product[];
 }
 
-export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
+interface ProductDetailContentProps {
+  product: Product;
+  onClose: () => void;
+  brandConfig: BrandConfig;
+  onOpenSizeGuide: () => void;
+  onOpenPaxiInfo: () => void;
+  allProducts?: Product[];
+}
+
+const ProductDetailContent: React.FC<ProductDetailContentProps> = ({
   product,
   onClose,
   brandConfig,
@@ -41,13 +52,31 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onOpenPaxiInfo,
   allProducts = [],
 }) => {
-  if (!product) return null;
-
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
   const [savedSizePref, setSavedSizePref] = useState<string | null>(() => getSavedSizePreference());
   const [isFitCalculatorOpen, setIsFitCalculatorOpen] = useState(false);
+
+  // Close Fit Calculator on Android Back button
+  React.useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (isFitCalculatorOpen && (e.state as any)?.subModal !== 'fit_calculator') {
+        setIsFitCalculatorOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isFitCalculatorOpen]);
+
+  const handleOpenFitCalc = () => {
+    pushSubModalState('fit_calculator');
+    setIsFitCalculatorOpen(true);
+  };
+
+  const handleCloseFitCalc = () => {
+    safeNavigateBack('fit_calculator', () => setIsFitCalculatorOpen(false));
+  };
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string>(() => {
@@ -97,7 +126,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const [companionAdded, setCompanionAdded] = useState(false);
 
+  // Compute selected variation stock
+  const selectedVariation = product.variations?.find(
+    (v) => v.size === selectedSize && v.colour.toLowerCase() === selectedColour.toLowerCase()
+  ) || product.variations?.find((v) => v.size === selectedSize);
+
+  const isOutOfStock = selectedVariation ? selectedVariation.stock === 0 : false;
+  const stockCount = selectedVariation?.stock;
+  const currentPrice = selectedVariation?.price || product.price;
+
   const handleAddBag = () => {
+    if (isOutOfStock) return;
     addToCart(product, selectedSize, selectedColour, quantity);
     setAddedAnimation(true);
     setTimeout(() => {
@@ -132,10 +171,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         className="relative w-full max-w-4xl bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row my-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
+        {/* Close Button - 44px mobile touch target */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/80 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+          className="absolute top-3 right-3 z-20 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/80 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-700 shadow-md"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />
@@ -569,19 +608,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {product.name}
             </h2>
 
-            {/* Pricing Section */}
-            <div className="mt-2 flex items-baseline gap-3">
+            {/* Pricing Section with Live Variation Stock Status */}
+            <div className="mt-2 flex items-baseline gap-3 flex-wrap">
               <span className="text-2xl sm:text-3xl font-black text-white font-display">
-                {formatZAR(product.price)}
+                {formatZAR(currentPrice)}
               </span>
               {product.compareAtPrice && (
                 <span className="text-sm text-zinc-500 line-through">
                   {formatZAR(product.compareAtPrice)}
                 </span>
               )}
-              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 px-2.5 py-0.5 rounded-md">
-                Available to Order
-              </span>
+              {isOutOfStock ? (
+                <span className="text-xs font-bold text-rose-400 bg-rose-950/70 border border-rose-500/40 px-2.5 py-0.5 rounded-md">
+                  Sold Out in this Combination
+                </span>
+              ) : stockCount !== undefined && stockCount <= 3 ? (
+                <span className="text-xs font-bold text-amber-400 bg-amber-950/70 border border-amber-500/40 px-2.5 py-0.5 rounded-md">
+                  Only {stockCount} left in stock!
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 px-2.5 py-0.5 rounded-md">
+                  {stockCount !== undefined ? `${stockCount} Pieces Available` : 'Available to Order'}
+                </span>
+              )}
             </div>
 
             {/* Brand Manifesto Quote */}
@@ -625,7 +674,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <div className="flex items-center gap-2.5">
                   <button
                     type="button"
-                    onClick={() => setIsFitCalculatorOpen(true)}
+                    onClick={handleOpenFitCalc}
                     className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1 font-bold bg-orange-500/10 hover:bg-orange-500/20 px-2.5 py-1 rounded-xl border border-orange-500/20 transition-colors active:scale-95 shadow-sm"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-orange-400" />
@@ -787,19 +836,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Authentic Verified Customer Reviews Section */}
+            <ProductReviewsSection product={product} />
           </div>
 
           {/* Action CTAs in Green, White, Blue, Orange */}
-          <div className="mt-6 pt-5 border-t border-zinc-800 space-y-2.5">
+          <div className="mt-6 pt-5 border-t border-zinc-800 space-y-2.5 pb-[env(safe-area-inset-bottom,0px)]">
             <button
               onClick={handleAddBag}
+              disabled={isOutOfStock}
               className={`w-full py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xl ${
-                addedAnimation
+                isOutOfStock
+                  ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
+                  : addedAnimation
                   ? 'bg-emerald-600 text-white scale-[0.98]'
-                  : 'bg-orange-500 hover:bg-orange-400 text-white shadow-orange-500/25 active:scale-95'
+                  : 'bg-orange-500 hover:bg-orange-400 text-white shadow-orange-500/25 active:scale-95 cursor-pointer'
               }`}
             >
-              {addedAnimation ? (
+              {isOutOfStock ? (
+                <span>Sold Out in this Combination</span>
+              ) : addedAnimation ? (
                 <>
                   <Check className="w-5 h-5 text-white" />
                   <span>Added to Bag!</span>
@@ -807,14 +864,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               ) : (
                 <>
                   <ShoppingBag className="w-5 h-5" />
-                  <span>Add to Bag • {formatZAR(product.price * quantity)}</span>
+                  <span>Add to Bag • {formatZAR(currentPrice * quantity)}</span>
                 </>
               )}
             </button>
 
             <button
               onClick={handleQuickWhatsApp}
-              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-950/40"
+              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-950/40 cursor-pointer"
             >
               <MessageSquare className="w-4 h-4" />
               <span>Direct WhatsApp Enquiry</span>
@@ -838,7 +895,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       {/* Streetwear Fit & Size Calculator Modal */}
       <FitCalculatorModal
         isOpen={isFitCalculatorOpen}
-        onClose={() => setIsFitCalculatorOpen(false)}
+        onClose={handleCloseFitCalc}
         onApplySize={(size) => {
           setSelectedSize(size);
           setSavedSizePref(size);
@@ -847,4 +904,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       />
     </div>
   );
+};
+
+export const ProductDetailModal: React.FC<ProductDetailModalProps> = (props) => {
+  if (!props.product) return null;
+  return <ProductDetailContent {...props} product={props.product} key={props.product.id} />;
 };

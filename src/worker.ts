@@ -7,6 +7,7 @@ import {
   PayFastEnv,
 } from '../server/payfast.js';
 import { getOrderStore, SubmittedOrder } from '../server/orderStore.js';
+import { commerceStore } from '../server/commerceStore.js';
 
 export interface Env extends PayFastEnv {
   ASSETS?: {
@@ -170,10 +171,6 @@ export default {
           deliveryFee = 0;
         }
 
-        if (subtotal >= 800 && deliveryMethod.startsWith('paxi')) {
-          deliveryFee = 0;
-        }
-
         const estimatedTotal = subtotal + deliveryFee;
 
         const orderNumber =
@@ -205,7 +202,7 @@ export default {
           whatsappUrl: `https://wa.me/27664412203?text=${encodeURIComponent(
             `Hi LASS, I just created order #${orderNumber} for R${estimatedTotal.toFixed(2)}`
           )}`,
-          status: 'pending_payment',
+          status: 'awaiting_payment',
           paymentStatus: 'pending',
           paymentMethod: 'payfast',
           statusNotes: `Awaiting PayFast payment confirmation for ${orderNumber} (ZAR ${estimatedTotal.toFixed(2)}).`,
@@ -609,7 +606,112 @@ export default {
       }
     }
 
-    // 8. Static Assets Serving via Cloudflare Workers Assets binding (with SPA fallback)
+    // 8. POST /api/orders/:orderNumber/status
+    if (pathname.startsWith('/api/orders/') && pathname.endsWith('/status') && method === 'POST') {
+      try {
+        const orderNumber = decodeURIComponent(pathname.replace('/api/orders/', '').replace('/status', ''));
+        const body: any = await request.json();
+        const { status, notes, courierName, trackingCode, trackingUrl, updatedBy } = body;
+        if (!status) {
+          return jsonResponse({ success: false, error: 'Status is required.' }, 400);
+        }
+        const result = await orderStore.updateStatus(orderNumber, status, {
+          notes,
+          courierName,
+          trackingCode,
+          trackingUrl,
+          updatedBy: updatedBy || 'admin',
+        });
+        if (!result.success) {
+          return jsonResponse(result, 400);
+        }
+        return jsonResponse(result);
+      } catch (err: any) {
+        return jsonResponse({ success: false, error: err.message }, 500);
+      }
+    }
+
+
+    // 11. LASS Drops: GET /api/drops, GET /api/drops/:id, POST /api/admin/drops, DELETE /api/admin/drops/:id
+    if (pathname === '/api/drops' && method === 'GET') {
+      return jsonResponse({ success: true, drops: commerceStore.getAllDrops() });
+    }
+    if (pathname.startsWith('/api/drops/') && method === 'GET') {
+      const id = pathname.replace('/api/drops/', '');
+      const drop = commerceStore.getDrop(id);
+      if (!drop) return jsonResponse({ success: false, error: 'Drop not found' }, 404);
+      return jsonResponse({ success: true, drop });
+    }
+    if (pathname === '/api/admin/drops' && method === 'POST') {
+      try {
+        const body: any = await request.json();
+        const saved = commerceStore.saveDrop(body);
+        return jsonResponse({ success: true, drop: saved });
+      } catch (e: any) {
+        return jsonResponse({ success: false, error: e.message }, 400);
+      }
+    }
+    if (pathname.startsWith('/api/admin/drops/') && method === 'DELETE') {
+      const id = pathname.replace('/api/admin/drops/', '');
+      const ok = commerceStore.deleteDrop(id);
+      return jsonResponse({ success: ok });
+    }
+
+    // 12. Reviews: GET /api/reviews, POST /api/reviews, POST /api/reviews/:id/report, GET /api/admin/reviews, POST /api/admin/reviews/:id/status
+    if (pathname === '/api/reviews' && method === 'GET') {
+      const productId = url.searchParams.get('productId') || undefined;
+      const reviews = commerceStore.getReviewsForProduct(productId);
+      return jsonResponse({ success: true, reviews });
+    }
+    if (pathname === '/api/reviews' && method === 'POST') {
+      try {
+        const body: any = await request.json();
+        const { productId, orderNumber, customerName, customerEmailOrPhone, rating, title, comment, images } = body;
+        if (!productId || !customerName || !rating || !comment) {
+          return jsonResponse({ success: false, error: 'Product ID, customer name, rating, and feedback required' }, 400);
+        }
+        let isVerifiedPurchase = false;
+        if (orderNumber) {
+          const verifiedOrder = await orderStore.get(orderNumber);
+          if (verifiedOrder && verifiedOrder.paymentStatus === 'paid') {
+            const hasProduct = verifiedOrder.items.some((item) => item.productId === productId);
+            if (hasProduct) isVerifiedPurchase = true;
+          }
+        }
+        const review = commerceStore.submitReview({
+          productId,
+          orderNumber,
+          customerName: String(customerName).trim(),
+          customerEmailOrPhone: customerEmailOrPhone ? String(customerEmailOrPhone).trim() : undefined,
+          rating: Math.max(1, Math.min(5, Math.round(Number(rating) || 5))),
+          title: title ? String(title).trim() : undefined,
+          comment: String(comment).trim(),
+          images: Array.isArray(images) ? images : [],
+          isVerifiedPurchase,
+        });
+        return jsonResponse({ success: true, review });
+      } catch (e: any) {
+        return jsonResponse({ success: false, error: e.message }, 500);
+      }
+    }
+    if (pathname.startsWith('/api/reviews/') && pathname.endsWith('/report') && method === 'POST') {
+      const id = pathname.replace('/api/reviews/', '').replace('/report', '');
+      const body: any = await request.json().catch(() => ({}));
+      const ok = commerceStore.reportReview(id, body.reason || 'Flagged by customer');
+      return jsonResponse({ success: ok });
+    }
+    if (pathname === '/api/admin/reviews' && method === 'GET') {
+      return jsonResponse({ success: true, reviews: commerceStore.getAllReviewsAdmin() });
+    }
+    if (pathname.startsWith('/api/admin/reviews/') && pathname.endsWith('/status') && method === 'POST') {
+      const id = pathname.replace('/api/admin/reviews/', '').replace('/status', '');
+      const body: any = await request.json();
+      const updated = commerceStore.moderateReview(id, body.status, body.adminNotes);
+      if (!updated) return jsonResponse({ success: false, error: 'Review not found' }, 404);
+      return jsonResponse({ success: true, review: updated });
+    }
+
+    // 13. Static Assets Serving via Cloudflare Workers Assets binding (with SPA fallback)
     if (env.ASSETS) {
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.status === 404 && request.method === 'GET' && !pathname.startsWith('/api/')) {

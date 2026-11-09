@@ -1,3 +1,5 @@
+import { isValidStatusTransition, normalizeOrderStatus } from './commerceStore.js';
+
 export interface OrderCustomerDetails {
   fullName: string;
   phoneOrWhatsApp: string;
@@ -25,22 +27,24 @@ export interface SubmittedOrder {
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
+  discountAmount?: number;
+  discountCode?: string;
   estimatedTotal: number;
   whatsappMessageText: string;
   whatsappUrl: string;
-  status:
-    | 'pending_payment'
-    | 'payment_confirmed'
-    | 'whatsapp_generated'
-    | 'pending_verification'
-    | 'dispatched_paxi'
-    | 'ready_for_collection'
-    | 'completed'
-    | 'cancelled';
+  status: string;
   paxiTrackingCode?: string;
+  courierName?: string;
+  trackingUrl?: string;
   statusNotes?: string;
+  statusHistory?: Array<{
+    status: string;
+    timestamp: string;
+    note?: string;
+    updatedBy?: string;
+  }>;
   paymentMethod?: 'payfast' | 'card' | 'instant_eft' | 'whatsapp';
-  paymentStatus?: 'pending' | 'paid' | 'failed' | 'cancelled';
+  paymentStatus?: 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded';
   transactionId?: string; // pf_payment_id from PayFast
   paidAt?: string;
   payfastData?: Record<string, any>;
@@ -67,6 +71,12 @@ export interface IOrderStore {
   save(order: SubmittedOrder): Promise<SubmittedOrder>;
   get(orderNumber: string): Promise<SubmittedOrder | null>;
   getAll(): Promise<SubmittedOrder[]>;
+  updateOrder(order: SubmittedOrder): Promise<SubmittedOrder>;
+  updateStatus(
+    orderNumber: string,
+    newStatus: string,
+    details?: { notes?: string; courierName?: string; trackingCode?: string; trackingUrl?: string; updatedBy?: string }
+  ): Promise<{ success: boolean; order?: SubmittedOrder; error?: string }>;
   recordPaymentResult(
     orderNumber: string,
     result: PaymentRecordResult
@@ -181,6 +191,48 @@ export class CloudflareKvOrderStore implements IOrderStore {
     const key = `order:${order.orderNumber}`;
     await this.kv.put(key, JSON.stringify(order));
     return order;
+  }
+
+  public async updateStatus(
+    orderNumber: string,
+    newStatus: string,
+    details?: { notes?: string; courierName?: string; trackingCode?: string; trackingUrl?: string; updatedBy?: string }
+  ): Promise<{ success: boolean; order?: SubmittedOrder; error?: string }> {
+    const order = await this.get(orderNumber);
+    if (!order) {
+      return { success: false, error: `Order #${orderNumber} not found.` };
+    }
+
+    const check = isValidStatusTransition(order.status, newStatus);
+    if (!check.valid) {
+      return { success: false, error: check.reason || 'Invalid status transition.' };
+    }
+
+    const normalized = normalizeOrderStatus(newStatus);
+    const prevStatus = order.status;
+    order.status = normalized;
+
+    if (details?.notes) order.statusNotes = details.notes;
+    if (details?.courierName) order.courierName = details.courierName;
+    if (details?.trackingCode) order.paxiTrackingCode = details.trackingCode;
+    if (details?.trackingUrl) order.trackingUrl = details.trackingUrl;
+
+    if (!order.statusHistory) order.statusHistory = [];
+    order.statusHistory.push({
+      status: normalized,
+      timestamp: new Date().toISOString(),
+      note: details?.notes || `Status transitioned from ${prevStatus} to ${normalized}`,
+      updatedBy: details?.updatedBy || 'admin',
+    });
+
+    if (normalized === 'delivered' && order.paymentStatus === 'paid') {
+      // order successfully completed
+    } else if (normalized === 'refunded') {
+      order.paymentStatus = 'refunded';
+    }
+
+    await this.updateOrder(order);
+    return { success: true, order };
   }
 
   public async recordPaymentResult(
@@ -313,6 +365,54 @@ export class NodeFileOrderStore implements IOrderStore {
     );
   }
 
+  public async updateOrder(order: SubmittedOrder): Promise<SubmittedOrder> {
+    this.orders.set(order.orderNumber, order);
+    await this.persist();
+    return order;
+  }
+
+  public async updateStatus(
+    orderNumber: string,
+    newStatus: string,
+    details?: { notes?: string; courierName?: string; trackingCode?: string; trackingUrl?: string; updatedBy?: string }
+  ): Promise<{ success: boolean; order?: SubmittedOrder; error?: string }> {
+    const order = await this.get(orderNumber);
+    if (!order) {
+      return { success: false, error: `Order #${orderNumber} not found.` };
+    }
+
+    const check = isValidStatusTransition(order.status, newStatus);
+    if (!check.valid) {
+      return { success: false, error: check.reason || 'Invalid status transition.' };
+    }
+
+    const normalized = normalizeOrderStatus(newStatus);
+    const prevStatus = order.status;
+    order.status = normalized;
+
+    if (details?.notes) order.statusNotes = details.notes;
+    if (details?.courierName) order.courierName = details.courierName;
+    if (details?.trackingCode) order.paxiTrackingCode = details.trackingCode;
+    if (details?.trackingUrl) order.trackingUrl = details.trackingUrl;
+
+    if (!order.statusHistory) order.statusHistory = [];
+    order.statusHistory.push({
+      status: normalized,
+      timestamp: new Date().toISOString(),
+      note: details?.notes || `Status transitioned from ${prevStatus} to ${normalized}`,
+      updatedBy: details?.updatedBy || 'admin',
+    });
+
+    if (normalized === 'delivered' && order.paymentStatus === 'paid') {
+      // completed
+    } else if (normalized === 'refunded') {
+      order.paymentStatus = 'refunded';
+    }
+
+    await this.updateOrder(order);
+    return { success: true, order };
+  }
+
   public async recordPaymentResult(
     orderNumber: string,
     result: PaymentRecordResult
@@ -393,6 +493,53 @@ export class EdgeMemoryOrderStore implements IOrderStore {
     return Array.from(this.orders.values()).sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
+  }
+
+  public async updateOrder(order: SubmittedOrder): Promise<SubmittedOrder> {
+    this.orders.set(order.orderNumber, order);
+    return order;
+  }
+
+  public async updateStatus(
+    orderNumber: string,
+    newStatus: string,
+    details?: { notes?: string; courierName?: string; trackingCode?: string; trackingUrl?: string; updatedBy?: string }
+  ): Promise<{ success: boolean; order?: SubmittedOrder; error?: string }> {
+    const order = this.orders.get(orderNumber);
+    if (!order) {
+      return { success: false, error: `Order #${orderNumber} not found.` };
+    }
+
+    const check = isValidStatusTransition(order.status, newStatus);
+    if (!check.valid) {
+      return { success: false, error: check.reason || 'Invalid status transition.' };
+    }
+
+    const normalized = normalizeOrderStatus(newStatus);
+    const prevStatus = order.status;
+    order.status = normalized;
+
+    if (details?.notes) order.statusNotes = details.notes;
+    if (details?.courierName) order.courierName = details.courierName;
+    if (details?.trackingCode) order.paxiTrackingCode = details.trackingCode;
+    if (details?.trackingUrl) order.trackingUrl = details.trackingUrl;
+
+    if (!order.statusHistory) order.statusHistory = [];
+    order.statusHistory.push({
+      status: normalized,
+      timestamp: new Date().toISOString(),
+      note: details?.notes || `Status transitioned from ${prevStatus} to ${normalized}`,
+      updatedBy: details?.updatedBy || 'admin',
+    });
+
+    if (normalized === 'delivered' && order.paymentStatus === 'paid') {
+      // completed
+    } else if (normalized === 'refunded') {
+      order.paymentStatus = 'refunded';
+    }
+
+    await this.updateOrder(order);
+    return { success: true, order };
   }
 
   public async recordPaymentResult(

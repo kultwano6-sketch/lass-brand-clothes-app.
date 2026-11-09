@@ -8,6 +8,7 @@ import {
   verifyPayFastITN,
   generatePayFastSignature,
 } from './server/payfast.js';
+import { commerceStore } from './server/commerceStore.js';
 
 // Load environment variables
 dotenv.config();
@@ -149,16 +150,11 @@ app.post('/api/payfast/create-checkout', async (req: Request, res: Response) => 
       deliveryFee = 0;
     }
 
-    // Free delivery threshold: orders R800 and above
-    if (subtotal >= 800 && deliveryMethod.startsWith('paxi')) {
-      deliveryFee = 0;
-    }
-
     const estimatedTotal = subtotal + deliveryFee;
 
     // Generate unique order reference (or reuse validated custom ref)
     const orderNumber =
-      customOrderRef && /^LASS-\d{4}$/.test(customOrderRef)
+      customOrderRef && /^LASS-[A-Za-z0-9_-]{3,24}$/.test(customOrderRef)
         ? customOrderRef
         : `LASS-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -191,12 +187,20 @@ app.post('/api/payfast/create-checkout', async (req: Request, res: Response) => 
           2
         )}`
       )}`,
-      status: 'pending_payment',
+      status: 'awaiting_payment',
       paymentStatus: 'pending',
       paymentMethod: 'payfast',
       statusNotes: `Awaiting PayFast payment confirmation for ${orderNumber} (ZAR ${estimatedTotal.toFixed(
         2
       )}).`,
+      statusHistory: [
+        {
+          status: 'awaiting_payment',
+          timestamp: new Date().toISOString(),
+          note: 'Order initiated at checkout.',
+          updatedBy: 'system',
+        },
+      ],
     };
 
     await orderStore.save(newOrder);
@@ -428,6 +432,147 @@ app.get('/api/orders/:orderId', async (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'Order not found' });
   }
   return res.json({ success: true, order });
+});
+
+/**
+ * POST /api/orders/:orderNumber/status
+ * Updates order fulfilment status with lifecycle validation and history
+ */
+app.post('/api/orders/:orderNumber/status', async (req: Request, res: Response) => {
+  try {
+    const { status, notes, courierName, trackingCode, trackingUrl, updatedBy } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required.' });
+    }
+    const result = await orderStore.updateStatus(req.params.orderNumber, status, {
+      notes,
+      courierName,
+      trackingCode,
+      trackingUrl,
+      updatedBy: updatedBy || 'admin',
+    });
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+/**
+ * GET /api/drops
+ * Returns public drops (active, scheduled, ended)
+ */
+app.get('/api/drops', (_req: Request, res: Response) => {
+  return res.json({ success: true, drops: commerceStore.getAllDrops() });
+});
+
+/**
+ * GET /api/drops/:id
+ */
+app.get('/api/drops/:id', (req: Request, res: Response) => {
+  const drop = commerceStore.getDrop(req.params.id);
+  if (!drop) return res.status(404).json({ success: false, error: 'Drop not found' });
+  return res.json({ success: true, drop });
+});
+
+/**
+ * POST /api/admin/drops (admin create/update drop)
+ */
+app.post('/api/admin/drops', (req: Request, res: Response) => {
+  try {
+    const saved = commerceStore.saveDrop(req.body);
+    return res.json({ success: true, drop: saved });
+  } catch (e: any) {
+    return res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/drops/:id
+ */
+app.delete('/api/admin/drops/:id', (req: Request, res: Response) => {
+  const ok = commerceStore.deleteDrop(req.params.id);
+  return res.json({ success: ok });
+});
+
+/**
+ * GET /api/reviews
+ * Returns approved reviews for a product
+ */
+app.get('/api/reviews', (req: Request, res: Response) => {
+  const productId = req.query.productId as string | undefined;
+  const reviews = commerceStore.getReviewsForProduct(productId);
+  return res.json({ success: true, reviews });
+});
+
+/**
+ * POST /api/reviews
+ * Submits a new customer review. Validates verified purchase against orderStore if orderNumber provided.
+ */
+app.post('/api/reviews', async (req: Request, res: Response) => {
+  try {
+    const { productId, orderNumber, customerName, customerEmailOrPhone, rating, title, comment, images } = req.body;
+    if (!productId || !customerName || !rating || !comment) {
+      return res.status(400).json({ success: false, error: 'Product ID, customer name, rating (1-5), and feedback are required.' });
+    }
+
+    const numRating = Math.max(1, Math.min(5, Math.round(Number(rating) || 5)));
+
+    // Verify purchase against orders in store
+    let verifiedPurchase = false;
+    if (orderNumber) {
+      const order = await orderStore.get(orderNumber.trim().toUpperCase());
+      if (order && (order.paymentStatus === 'paid' || order.status === 'delivered')) {
+        const hasItem = order.items.some((it) => it.productId === productId);
+        if (hasItem) verifiedPurchase = true;
+      }
+    }
+
+    const newRev = commerceStore.submitReview({
+      productId,
+      orderNumber: orderNumber ? orderNumber.trim().toUpperCase() : undefined,
+      customerName: customerName.trim(),
+      customerEmailOrPhone: customerEmailOrPhone ? customerEmailOrPhone.trim() : undefined,
+      rating: numRating,
+      title: (title || '').trim() || 'Customer Review',
+      comment: comment.trim(),
+      images: Array.isArray(images) ? images.slice(0, 3) : [],
+      verifiedPurchase,
+    });
+
+    return res.json({ success: true, review: newRev });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * POST /api/reviews/:id/report
+ */
+app.post('/api/reviews/:id/report', (req: Request, res: Response) => {
+  const { reason } = req.body;
+  const ok = commerceStore.reportReview(req.params.id, reason || 'Inappropriate content');
+  return res.json({ success: ok });
+});
+
+/**
+ * GET /api/admin/reviews (admin review moderation list)
+ */
+app.get('/api/admin/reviews', (_req: Request, res: Response) => {
+  return res.json({ success: true, reviews: commerceStore.getAllReviewsAdmin() });
+});
+
+/**
+ * POST /api/admin/reviews/:id/status (moderate review)
+ */
+app.post('/api/admin/reviews/:id/status', (req: Request, res: Response) => {
+  const { status, adminNotes } = req.body;
+  const updated = commerceStore.moderateReview(req.params.id, status, adminNotes);
+  if (!updated) return res.status(404).json({ success: false, error: 'Review not found' });
+  return res.json({ success: true, review: updated });
 });
 
 /**

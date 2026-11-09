@@ -26,6 +26,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          decoding="async"
         />
 
         {/* Gradient Overlay */}
@@ -51,13 +52,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           )}
         </div>
 
-        {/* Wishlist Button */}
+        {/* Wishlist Button - 44px accessible touch target */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             toggleWishlist(product.id);
           }}
-          className={`absolute top-2.5 right-2.5 p-2 rounded-full backdrop-blur-md transition-colors z-10 ${
+          className={`absolute top-2 right-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full backdrop-blur-md transition-colors z-10 ${
             wishlisted
               ? 'bg-orange-500 text-white shadow-lg'
               : 'bg-black/60 text-white hover:text-orange-400 hover:bg-black/90'

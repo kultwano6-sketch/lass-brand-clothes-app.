@@ -19,6 +19,8 @@ import { SubmittedOrder, BrandConfig } from '../types';
 import { formatZAR, buildWhatsAppLink } from '../utils/whatsapp';
 import { getLocalOrders, findOrderByReference } from '../utils/orderStorage';
 import { PrintableInvoiceModal } from './PrintableInvoiceModal';
+import { ShipmentProgressIndicator } from './ShipmentProgressIndicator';
+import { pushSubModalState, safeNavigateBack } from '../utils/navigation';
 
 interface OrderStatusModalProps {
   isOpen: boolean;
@@ -38,6 +40,28 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
   const [hasSearched, setHasSearched] = useState(false);
   const [recentOrders, setRecentOrders] = useState<SubmittedOrder[]>([]);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+
+  const openInvoiceModal = () => {
+    pushSubModalState('print_invoice');
+    setIsInvoiceModalOpen(true);
+  };
+
+  const closeInvoiceModal = () => {
+    safeNavigateBack('print_invoice', () => setIsInvoiceModalOpen(false));
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (isInvoiceModalOpen && e.state?.subModal !== 'print_invoice') {
+        setIsInvoiceModalOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isOpen, isInvoiceModalOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -90,12 +114,22 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
 
     // 3. Fallback: Query server for order status
     try {
-      const res = await fetch(`/api/payfast/order-status/${encodeURIComponent(query)}`);
+      let res = await fetch(`/api/payfast/order-status/${encodeURIComponent(query)}`);
       if (res.ok) {
         const data: any = await res.json();
         if (data.success) {
           setCurrentOrder(data as SubmittedOrder);
           return;
+        }
+      } else {
+        // Also check general order endpoint
+        res = await fetch(`/api/orders/${encodeURIComponent(query)}`);
+        if (res.ok) {
+          const data: any = await res.json();
+          if (data.success && data.order) {
+            setCurrentOrder(data.order as SubmittedOrder);
+            return;
+          }
         }
       }
     } catch (err) {
@@ -109,51 +143,6 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
     setCurrentOrder(order);
     setHasSearched(true);
   };
-
-  // Status mapping and steps
-  const getStatusStepIndex = (status: SubmittedOrder['status']) => {
-    switch (status) {
-      case 'pending_payment':
-      case 'whatsapp_generated':
-        return 0;
-      case 'pending_verification':
-        return 1;
-      case 'payment_confirmed':
-        return 2;
-      case 'dispatched_paxi':
-        return 3;
-      case 'ready_for_collection':
-      case 'completed':
-        return 4;
-      default:
-        return 0;
-    }
-  };
-
-  const statusSteps = [
-    {
-      title: 'WhatsApp Order Sent',
-      desc: 'Order details generated and messaged to brand owner',
-    },
-    {
-      title: 'Stock & Fit Verified',
-      desc: 'Owner checks physical inventory and sizing availability',
-    },
-    {
-      title: 'Payment Arranged',
-      desc: 'Manual EFT or Cash transfer confirmed with brand owner',
-    },
-    {
-      title: 'Dispatched via PAXI',
-      desc: 'Bagged and dropped at PEP counter with tracking code',
-    },
-    {
-      title: 'Ready at PEP Store',
-      desc: 'SMS collection PIN sent to your phone for counter pickup',
-    },
-  ];
-
-  const currentStep = currentOrder ? getStatusStepIndex(currentOrder.status) : 0;
 
   // Build inquiry WhatsApp link
   const followUpWhatsAppUrl = currentOrder
@@ -180,10 +169,10 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
             </div>
             <div>
               <h2 className="font-display font-black text-lg text-white">
-                Track Manual WhatsApp Order
+                Track Order &amp; Live Shipment
               </h2>
               <p className="text-xs text-blue-200">
-                Check verification, payment &amp; PAXI PEP delivery status
+                Real-time status, PayFast verification &amp; PAXI PEP delivery progress
               </p>
             </div>
           </div>
@@ -284,7 +273,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
                     </span>
                   </div>
                   <button
-                    onClick={() => setIsInvoiceModalOpen(true)}
+                    onClick={openInvoiceModal}
                     className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors border border-zinc-700 shrink-0 shadow-sm"
                     title="Print tax invoice & packing slip"
                   >
@@ -294,83 +283,8 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
                 </div>
               </div>
 
-              {/* Status Stepper Timeline */}
-              <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
-                <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                  Order Progression Timeline
-                </h4>
-
-                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-800">
-                  {statusSteps.map((step, idx) => {
-                    const isDone = idx <= currentStep;
-                    const isCurrent = idx === currentStep;
-
-                    return (
-                      <div key={idx} className="relative group">
-                        {/* Status Dot */}
-                        <div
-                          className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
-                            isDone
-                              ? 'bg-emerald-500 text-white ring-4 ring-zinc-950 font-black'
-                              : 'bg-zinc-800 text-zinc-500 ring-4 ring-zinc-950'
-                          }`}
-                        >
-                          {isDone ? '✓' : idx + 1}
-                        </div>
-
-                        <div>
-                          <h5
-                            className={`text-xs font-bold ${
-                              isCurrent
-                                ? 'text-orange-400 font-black'
-                                : isDone
-                                ? 'text-white'
-                                : 'text-zinc-500'
-                            }`}
-                          >
-                            {step.title}
-                          </h5>
-                          <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
-                            {step.desc}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Specific PAXI Tracking Code if dispatched */}
-                {currentOrder.paxiTrackingCode && (
-                  <div className="mt-4 p-3.5 rounded-2xl bg-blue-950/40 border border-blue-500/40 text-xs text-blue-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-blue-400" />
-                      <div>
-                        <span className="font-bold text-blue-300 block">PAXI Tracking Bag Number:</span>
-                        <span className="font-mono text-white font-bold">{currentOrder.paxiTrackingCode}</span>
-                      </div>
-                    </div>
-                    <a
-                      href={`https://www.paxi.co.za/track?tracking_number=${currentOrder.paxiTrackingCode}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1 shrink-0 shadow-sm"
-                    >
-                      <span>PAXI Portal</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                )}
-
-                {/* Status Notes from Owner if present */}
-                {currentOrder.statusNotes && (
-                  <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 block">
-                      Owner Dispatch Note:
-                    </span>
-                    <p className="text-zinc-200 mt-0.5">{currentOrder.statusNotes}</p>
-                  </div>
-                )}
-              </div>
+              {/* Visual Shipment Progress Indicator Component */}
+              <ShipmentProgressIndicator order={currentOrder} brandConfig={brandConfig} />
 
               {/* Order Item Details */}
               <div className="space-y-3">
@@ -476,7 +390,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
       {/* Printable Invoice & Packing Slip Modal */}
       <PrintableInvoiceModal
         isOpen={isInvoiceModalOpen}
-        onClose={() => setIsInvoiceModalOpen(false)}
+        onClose={closeInvoiceModal}
         order={currentOrder}
         brandConfig={brandConfig}
       />

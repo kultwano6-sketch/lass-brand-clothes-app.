@@ -6,10 +6,11 @@
     --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 
-  body {
+  html, body {
     font-family: var(--font-body);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, .font-display {
@@ -34,12 +35,32 @@
   background: #f97316;
 }
 
-/* Safe area for mobile iPhones / modern Android devices with gesture bars */
+/* Safe area for mobile iPhones / modern Android devices with gesture bars & notches */
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* iOS Safari form auto-zoom prevention: inputs must be at least 16px font-size */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch responsiveness without tap-lag */
+button, a, input, select, textarea {
+  touch-action: manipulation;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

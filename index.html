@@ -2,24 +2,32 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>LASS</title>
-    <meta name="description" content="LASS – South African Kasi streetwear mobile shopping app featuring printed t-shirts, 2026 drops, secure in-app payments (Card, Capitec Pay, Instant EFT), and PAXI PEP delivery." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>LASS Brand Clothes</title>
+    <meta name="description" content="LASS Brand Clothes – South African Kasi streetwear mobile shopping app featuring printed t-shirts, 2026 drops, secure in-app payments (Card, Capitec Pay, Instant EFT), and PAXI PEP delivery." />
     
     <!-- OpenGraph & Social -->
-    <meta property="og:title" content="LASS" />
+    <meta property="og:title" content="LASS Brand Clothes" />
     <meta property="og:description" content="Harvest ke LASS – The only Kasi wear that drives the world insane. South African streetwear shopping app." />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="en_ZA" />
+    <meta property="og:image" content="/icon-512.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LASS" />
-    <meta name="twitter:description" content="South African Kasi streetwear shopping app with WhatsApp ordering." />
+    <meta name="twitter:title" content="LASS Brand Clothes" />
+    <meta name="twitter:description" content="South African Kasi streetwear shopping app with in-app PayFast card & Capitec Pay." />
+    <meta name="twitter:image" content="/icon-512.png" />
 
-    <!-- PWA & Mobile Web Capabilities -->
-    <meta name="theme-color" content="#047857" />
+    <!-- PWA & Cross-Platform Mobile Web Capabilities -->
+    <meta name="application-name" content="LASS Brand Clothes" />
+    <meta name="theme-color" content="#047857" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#047857" media="(prefers-color-scheme: light)" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="LASS" />
+    <meta name="apple-mobile-web-app-title" content="LASS Clothes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Web App Manifest & Favicons -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -31,11 +39,98 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Standalone Launch Native Splash Styles -->
+    <style>
+      #pwa-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background-color: #09090b;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #ffffff;
+      }
+      .splash-logo-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 1.25rem;
+        background: #000000;
+        border: 2px solid #047857;
+        box-shadow: 0 10px 25px -5px rgba(4, 120, 87, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulseLogo 2s infinite ease-in-out;
+      }
+      .splash-logo-box img {
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+      }
+      .splash-title {
+        font-size: 1.125rem;
+        font-weight: 900;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: #ffffff;
+      }
+      .splash-tagline {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #f97316;
+        margin-top: -0.75rem;
+      }
+      .splash-bar {
+        width: 120px;
+        height: 3px;
+        border-radius: 9999px;
+        background: #27272a;
+        overflow: hidden;
+        position: relative;
+        margin-top: 0.5rem;
+      }
+      .splash-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #047857, #f97316);
+        animation: loadingBar 1.4s infinite ease-in-out;
+      }
+      @keyframes pulseLogo {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
+      @keyframes loadingBar {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+    </style>
   </head>
   <body class="bg-zinc-950 text-white antialiased min-h-screen selection:bg-orange-500 selection:text-white">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Native PWA Launch Splash Screen (replaced upon React mount) -->
+      <div id="pwa-splash" aria-label="Loading LASS Brand Clothes">
+        <div class="splash-logo-box">
+          <img src="/logo.svg" alt="LASS" width="52" height="52" />
+        </div>
+        <div class="splash-title">LASS BRAND CLOTHES</div>
+        <div class="splash-tagline">Harvest Ke LASS</div>
+        <div class="splash-bar"></div>
+      </div>
+    </div>
+
     <script>
-      // Chunk reload recovery: if browser tries to load old cached chunk that was refreshed, reload once
+      // Chunk reload recovery: if browser encounters stale hash chunk, refresh cleanly once
       window.addEventListener('error', function(e) {
         if (e.message && (e.message.indexOf('dynamically imported module') !== -1 || e.message.indexOf('Loading chunk') !== -1 || e.message.indexOf('Failed to fetch') !== -1)) {
           if (!sessionStorage.getItem('lass_chunk_retry')) {
@@ -52,26 +147,16 @@
     </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Service worker management: only cache in production; unregister in preview to prevent stale chunk caching
+      // PWA Service Worker Registration across Android, iOS Safari and Desktop
       if ('serviceWorker' in navigator) {
-        if (window.location.hostname.includes('.run.app') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          navigator.serviceWorker.getRegistrations().then((registrations) => {
-            for (const registration of registrations) {
-              registration.unregister();
-            }
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            // Check for updates periodically
+            registration.update().catch(function() {});
+          }).catch(function(err) {
+            console.log('PWA Service Worker registration skipped:', err);
           });
-          if ('caches' in window) {
-            caches.keys().then((keys) => {
-              keys.forEach((k) => caches.delete(k));
-            });
-          }
-        } else if (window.location.protocol === 'https:') {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch((err) => {
-              console.log('SW registration skipped:', err);
-            });
-          });
-        }
+        });
       }
     </script>
   </body>

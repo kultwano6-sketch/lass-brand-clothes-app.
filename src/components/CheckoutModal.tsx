@@ -35,6 +35,7 @@ import { saveLocalOrder } from '../utils/orderStorage';
 import { POPULAR_PAXI_BRANCHES, PaxiBranch, validatePaxiBranchSelection } from '../data/paxiBranches';
 import { PaxiStoreLocatorModal } from './PaxiStoreLocatorModal';
 import { PrintableInvoiceModal } from './PrintableInvoiceModal';
+import { pushSubModalState, safeNavigateBack } from '../utils/navigation';
 
 const SAVED_CUSTOMER_PROFILE_KEY = 'lass_saved_customer_profile_v1';
 
@@ -100,6 +101,41 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [isPaxiPickerOpen, setIsPaxiPickerOpen] = useState(false);
   const [isPaxiLocatorModalOpen, setIsPaxiLocatorModalOpen] = useState(false);
 
+  const openPaxiLocator = () => {
+    pushSubModalState('paxi_locator');
+    setIsPaxiLocatorModalOpen(true);
+  };
+
+  const closePaxiLocator = () => {
+    safeNavigateBack('paxi_locator', () => setIsPaxiLocatorModalOpen(false));
+  };
+
+  const openPrintModal = () => {
+    pushSubModalState('print_invoice');
+    setIsPrintModalOpen(true);
+  };
+
+  const closePrintModal = () => {
+    safeNavigateBack('print_invoice', () => setIsPrintModalOpen(false));
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePopState = (e: PopStateEvent) => {
+      const state = e.state;
+      if (isPaxiLocatorModalOpen && state?.subModal !== 'paxi_locator') {
+        setIsPaxiLocatorModalOpen(false);
+      }
+      if (isPrintModalOpen && state?.subModal !== 'print_invoice') {
+        setIsPrintModalOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isOpen, isPaxiLocatorModalOpen, isPrintModalOpen]);
+
   // Validate the current branch selection live
   const paxiValidation = validatePaxiBranchSelection(customer.pepStoreBranch);
 
@@ -128,9 +164,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const deliveryFee =
     customer.deliveryMethod === 'paxi-standard'
-      ? subtotal >= 800
-        ? 0
-        : brandConfig.paxiStandardFee
+      ? brandConfig.paxiStandardFee
       : customer.deliveryMethod === 'paxi-express'
       ? brandConfig.paxiExpressFee
       : 0;
@@ -278,7 +312,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       estimatedTotal: orderTotal,
       whatsappMessageText: messageText,
       whatsappUrl,
-      status: 'whatsapp_generated',
+      status: 'awaiting_payment',
       statusNotes: `WhatsApp order generated. Customer discussing with brand owner.`,
       paymentMethod: 'whatsapp',
       paymentStatus: 'pending',
@@ -326,7 +360,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -373,7 +407,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         )}
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs text-zinc-300">
+        <div className="p-4 sm:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] overflow-y-auto space-y-5 text-xs text-zinc-300">
           {validationError && (
             <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-300 flex items-start gap-2.5 animate-in fade-in">
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
@@ -426,6 +460,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <User className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
                     <input
                       type="text"
+                      name="name"
+                      autoComplete="name"
+                      inputMode="text"
                       placeholder="e.g. Sibusiso Khumalo"
                       value={customer.fullName}
                       onChange={(e) => setCustomer({ ...customer, fullName: e.target.value })}
@@ -444,6 +481,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <Mail className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
                       <input
                         type="email"
+                        name="email"
+                        autoComplete="email"
+                        inputMode="email"
                         placeholder="sbu@gmail.com"
                         value={customer.email}
                         onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
@@ -461,6 +501,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <Phone className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
                       <input
                         type="tel"
+                        name="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
                         placeholder="072 123 4567"
                         value={customer.phoneOrWhatsApp}
                         onChange={(e) => setCustomer({ ...customer, phoneOrWhatsApp: e.target.value })}
@@ -475,11 +518,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-white mb-1.5 flex items-center justify-between">
                     <span>Delivery Method</span>
-                    {subtotal >= 800 && (
-                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
-                        FREE PAXI Qualified (R800+)
-                      </span>
-                    )}
                   </label>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -495,7 +533,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-xs">PAXI Standard</span>
                         <span className="text-xs font-black text-orange-400">
-                          {subtotal >= 800 ? 'FREE' : `R${brandConfig.paxiStandardFee}`}
+                          R{brandConfig.paxiStandardFee}
                         </span>
                       </div>
                       <span className="text-[10px] block leading-tight text-zinc-400">
@@ -553,7 +591,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => setIsPaxiLocatorModalOpen(true)}
+                        onClick={openPaxiLocator}
                         className="text-[11px] font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1.5 transition-colors bg-orange-500/10 px-2.5 py-1 rounded-lg border border-orange-500/20 active:scale-95"
                       >
                         <Search className="w-3.5 h-3.5 text-orange-400" />
@@ -593,7 +631,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => setIsPaxiLocatorModalOpen(true)}
+                          onClick={openPaxiLocator}
                           className="text-xs font-bold text-orange-400 hover:text-white underline shrink-0 self-center"
                         >
                           Change
@@ -604,7 +642,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <span>Please select your PEP pickup branch from the locator or quick list.</span>
                         <button
                           type="button"
-                          onClick={() => setIsPaxiLocatorModalOpen(true)}
+                          onClick={openPaxiLocator}
                           className="font-bold underline text-white shrink-0"
                         >
                           Find Branch
@@ -950,7 +988,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>Open in WhatsApp</span>
                 </a>
                 <button
-                  onClick={() => setIsPrintModalOpen(true)}
+                  onClick={openPrintModal}
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs flex items-center justify-center gap-2 border border-zinc-700 transition-colors"
                 >
                   <Printer className="w-4 h-4 text-orange-400" />
@@ -971,7 +1009,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       {/* Interactive PAXI PEP Store Locator Modal */}
       <PaxiStoreLocatorModal
         isOpen={isPaxiLocatorModalOpen}
-        onClose={() => setIsPaxiLocatorModalOpen(false)}
+        onClose={closePaxiLocator}
         onSelectBranch={handleSelectPaxiBranch}
         selectedBranchCode={paxiValidation.matchedBranch?.code}
       />
@@ -980,7 +1018,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       {finalOrder && (
         <PrintableInvoiceModal
           isOpen={isPrintModalOpen}
-          onClose={() => setIsPrintModalOpen(false)}
+          onClose={closePrintModal}
           order={finalOrder}
           brandConfig={brandConfig}
         />

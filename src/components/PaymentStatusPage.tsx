@@ -24,6 +24,7 @@ import { BrandConfig, SubmittedOrder } from '../types';
 import { formatZAR, buildWhatsAppLink } from '../utils/whatsapp';
 import { saveLocalOrder } from '../utils/orderStorage';
 import { useCart } from '../context/CartContext';
+import { ShipmentProgressIndicator } from './ShipmentProgressIndicator';
 
 interface PaymentStatusPageProps {
   orderId: string;
@@ -949,6 +950,9 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
           </div>
         </div>
 
+        {/* Visual Shipment Progress Indicator */}
+        <ShipmentProgressIndicator order={order} brandConfig={brandConfig} />
+
         {/* Customer & Destination Summary */}
         <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-3 text-xs">
           <h3 className="font-bold text-white text-sm flex items-center gap-2">
@@ -1037,6 +1041,15 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
               <MessageSquare className="w-4 h-4" />
               <span>WhatsApp Dispatch Alert</span>
             </a>
+
+            <button
+              onClick={() => onOpenTrackOrder(order.orderNumber || displayOrderId)}
+              className="px-4 py-3 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition-colors flex items-center gap-1.5"
+              title="Open Track Order Screen"
+            >
+              <Truck className="w-4 h-4 text-blue-400" />
+              <span>Track Details</span>
+            </button>
 
             <button
               onClick={handlePrintReceipt}

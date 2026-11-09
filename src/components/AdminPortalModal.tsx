@@ -386,6 +386,20 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const refreshed = getLocalOrders();
     setSavedOrders(refreshed.length > 0 ? refreshed : DEMO_SAMPLE_ORDERS);
     showNotification(`Order #${orderNumber} updated to ${newStatus.replace(/_/g, ' ')}`);
+
+    // Sync to backend persistent store / Cloudflare KV
+    fetch(`/api/orders/${encodeURIComponent(orderNumber)}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: newStatus,
+        notes,
+        trackingCode: paxiCode,
+        updatedBy: 'brand_owner',
+      }),
+    }).catch(() => {
+      // Offline or network error - local storage remains safe
+    });
   };
 
   const handleAdvanceOrderStatus = (order: SubmittedOrder) => {
@@ -1372,12 +1386,22 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                                 }`}
                                 title="Change order status in localStorage"
                               >
-                                <option value="whatsapp_generated">WhatsApp Generated</option>
-                                <option value="pending_verification">Pending Verification</option>
+                                <option value="awaiting_payment">Awaiting Payment</option>
                                 <option value="payment_confirmed">Payment Confirmed</option>
-                                <option value="dispatched_paxi">Dispatched (PAXI)</option>
-                                <option value="ready_for_collection">Ready for Collection</option>
-                                <option value="completed">Completed</option>
+                                <option value="processing">Processing & Quality Check</option>
+                                <option value="ready_for_dispatch">Ready for Dispatch</option>
+                                <option value="dispatched">Dispatched (PAXI / Courier)</option>
+                                <option value="out_for_delivery">Out for Delivery / PEP Counter</option>
+                                <option value="delivered">Delivered / Collected</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="refund_pending">Refund Pending</option>
+                                <option value="refunded">Refunded</option>
+                                {/* Legacy aliases */}
+                                <option value="whatsapp_generated">WhatsApp Generated (Legacy)</option>
+                                <option value="pending_verification">Pending Verification (Legacy)</option>
+                                <option value="dispatched_paxi">Dispatched PAXI (Legacy)</option>
+                                <option value="ready_for_collection">Ready for Collection (Legacy)</option>
+                                <option value="completed">Completed (Legacy)</option>
                               </select>
 
                               {ord.paymentStatus === 'paid' && (

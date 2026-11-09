@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, SlidersHorizontal, ArrowUpDown, X, Sparkles } from 'lucide-react';
 
-export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'featured';
+export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'featured' | 'popularity' | 'rating';
 
 interface SearchAndFiltersProps {
   categories: { id: string; label: string; count: number }[];
@@ -115,6 +115,8 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
               className="bg-transparent text-white font-bold focus:outline-none cursor-pointer pr-1"
             >
               <option value="featured" className="bg-zinc-900 text-white">Featured</option>
+              <option value="popularity" className="bg-zinc-900 text-white">Popularity (Most Ordered)</option>
+              <option value="rating" className="bg-zinc-900 text-white">Highest Customer Rating</option>
               <option value="newest" className="bg-zinc-900 text-white">Newest Added (2026 Drops)</option>
               <option value="price-asc" className="bg-zinc-900 text-white">Price: Low to High (ZAR)</option>
               <option value="price-desc" className="bg-zinc-900 text-white">Price: High to Low (ZAR)</option>
