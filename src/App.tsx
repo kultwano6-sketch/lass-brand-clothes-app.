@@ -781,82 +781,84 @@ function MainShopContent() {
           />
         ) : (
           <>
-            {/* HERO SECTION: Green, White, Blue, Orange and Black Streetwear Palette */}
-            <section className="relative rounded-3xl overflow-hidden border border-emerald-800/40 bg-gradient-to-br from-emerald-950 via-zinc-950 to-blue-950 p-6 sm:p-10 lg:p-14 mb-10 shadow-2xl">
-          {/* Streetwear ambient gradients & graphics */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+            {/* HERO SECTION: High-Fashion Streetwear Editorial */}
+            <section className="relative rounded-3xl overflow-hidden border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-6 sm:p-10 lg:p-12 mb-10 shadow-2xl">
+              {/* Subtle ambient lighting */}
+              <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 max-w-3xl space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-black tracking-widest uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-              <span>South African Streetwear Drop</span>
-            </div>
+              <div className="relative z-10 max-w-3xl space-y-4 sm:space-y-6">
+                <div className="flex items-center gap-2 text-xs font-bold text-orange-400 tracking-wider uppercase">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>South African Streetwear Flagship</span>
+                  <span aria-hidden="true" className="text-zinc-600">·</span>
+                  <span className="text-zinc-400 font-mono">Winter 2026</span>
+                </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black font-display text-white tracking-tight uppercase leading-[1.05]">
-              Harvest Ke <span className="text-orange-400">LASS</span>
-            </h1>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black font-display text-white tracking-tight uppercase leading-[1.02]">
+                  Harvest Ke <span className="text-orange-500">LASS</span>
+                </h1>
 
-            <p className="text-base sm:text-lg text-emerald-100 font-medium max-w-2xl leading-relaxed">
-              {brandConfig.manifesto}
-            </p>
+                <p className="text-sm sm:text-base text-zinc-300 font-normal max-w-2xl leading-relaxed">
+                  {brandConfig.manifesto}
+                </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={() => {
-                  handleSelectCategory('2026-new-drops');
-                  const el = document.getElementById('catalog-section');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-xl shadow-orange-500/25 transition-transform active:scale-95"
-              >
-                <span>Shop 2026 Drops (R300)</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      handleSelectCategory('2026-new-drops');
+                      const el = document.getElementById('catalog-section');
+                      el?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-orange-500/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <span>Shop 2026 Drops (R300)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
 
-              <button
-                onClick={() => {
-                  handleSelectCategory('t-shirts');
-                  const el = document.getElementById('catalog-section');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-colors shadow-lg shadow-blue-900/30"
-              >
-                Pocket &amp; Back Prints (R250 - R280)
-              </button>
-            </div>
+                  <button
+                    onClick={() => {
+                      handleSelectCategory('t-shirts');
+                      const el = document.getElementById('catalog-section');
+                      el?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-colors border border-zinc-700/80 cursor-pointer"
+                  >
+                    Pocket &amp; Back Prints (R250 - R280)
+                  </button>
+                </div>
 
-            {/* Reassurance Badges in Green, White, Blue, Orange */}
-            <div className="pt-4 border-t border-emerald-900/40 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-zinc-300">
-              <button
-                onClick={() => handleOpenOrderStatus('')}
-                className="flex items-center gap-1.5 hover:text-orange-300 text-orange-400 font-bold transition-colors"
-                title="Track your order status"
-              >
-                <Package className="w-4 h-4 text-orange-400" />
-                <span>Track Manual Order (#LASS-XXXX)</span>
-              </button>
-              <button
-                onClick={handleOpenPaxiInfo}
-                className="flex items-center gap-1.5 hover:text-white text-blue-300 font-medium transition-colors"
-              >
-                <Truck className="w-4 h-4 text-blue-400" />
-                <span>PAXI PEP Pickup (R60)</span>
-              </button>
-              <button
-                onClick={handleOpenAuditModal}
-                className="flex items-center gap-1.5 hover:text-white text-emerald-300 font-medium transition-colors"
-              >
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Audited Google Sites Prices</span>
-              </button>
-              <div className="flex items-center gap-1.5 text-zinc-300">
-                <CreditCard className="w-4 h-4 text-orange-400" />
-                <span>Pay In-App (Card &amp; Capitec Pay)</span>
+                {/* Reassurance Ribbon: Clean, unboxed trust markers */}
+                <div className="pt-5 border-t border-zinc-800/80 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-zinc-400">
+                  <button
+                    onClick={() => handleOpenOrderStatus('')}
+                    className="flex items-center gap-1.5 text-zinc-300 hover:text-orange-400 font-semibold transition-colors cursor-pointer"
+                    title="Track your order status"
+                  >
+                    <Package className="w-4 h-4 text-orange-400" />
+                    <span>Track Order (#LASS-XXXX)</span>
+                  </button>
+                  <button
+                    onClick={handleOpenPaxiInfo}
+                    className="flex items-center gap-1.5 text-zinc-300 hover:text-white font-medium transition-colors cursor-pointer"
+                  >
+                    <Truck className="w-4 h-4 text-blue-400" />
+                    <span>PAXI PEP Pickup (R60)</span>
+                  </button>
+                  <button
+                    onClick={handleOpenAuditModal}
+                    className="flex items-center gap-1.5 text-zinc-300 hover:text-white font-medium transition-colors cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Audited Original Prices</span>
+                  </button>
+                  <div className="flex items-center gap-1.5 text-zinc-400">
+                    <CreditCard className="w-4 h-4 text-zinc-400" />
+                    <span>Card &amp; Capitec Pay</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </section>
+            </section>
 
         {/* CATALOGUE CONTROLS & FILTERING SECTION */}
         <section id="catalog-section" className="space-y-6">

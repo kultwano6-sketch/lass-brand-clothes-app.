@@ -46,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { totalWishlistCount } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Close mobile drawer on Android Back button
   useEffect(() => {
@@ -106,12 +107,12 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 w-full bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 pt-[env(safe-area-inset-top,0px)]">
 
       {/* Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Mobile Menu Trigger & Brand Identity */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={toggleMobileMenu}
-            className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-300 hover:text-white rounded-xl hover:bg-zinc-900 transition-colors"
+            className="md:hidden min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-zinc-300 hover:text-white rounded-xl hover:bg-zinc-900 transition-colors shrink-0"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -120,20 +121,18 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Brand Logo with discreet owner multi-tap trigger (completely silent, no visible counter) */}
           <div
             onClick={handleDiscreetLogoClick}
-            className="flex items-center gap-2.5 cursor-pointer select-none group relative"
+            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none group relative shrink-0"
             title="LASS"
           >
             <img
               src="/logo.svg"
               alt="LASS Logo"
-              className="w-9 h-9 rounded-xl bg-black border border-emerald-500/80 group-hover:border-orange-500 shadow-md transition-all group-active:scale-95 object-contain"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-black border border-emerald-500/80 group-hover:border-orange-500 shadow-md transition-all group-active:scale-95 object-contain shrink-0"
             />
 
-            <div className="flex flex-col">
-              <span className="font-display font-black text-xl sm:text-2xl tracking-wider text-white uppercase group-hover:text-emerald-400 transition-colors leading-none">
-                LASS
-              </span>
-            </div>
+            <span className="font-display font-black text-xl sm:text-2xl tracking-wider text-white uppercase group-hover:text-emerald-400 transition-colors leading-none shrink-0">
+              LASS
+            </span>
           </div>
         </div>
 
@@ -213,10 +212,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </nav>
 
-        {/* Right Actions: Search, Track, Notifications, Theme, Wishlist, Bag */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Search Toggle */}
-          <div className="relative">
+        {/* Right Actions: Clean, uncluttered layout with visible Bag and Wishlist */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Desktop Search Toggle */}
+          <div className="hidden md:block relative">
             {showSearchInput ? (
               <div className="flex items-center bg-zinc-900 border border-emerald-600/60 rounded-xl px-2.5 py-1">
                 <Search className="w-4 h-4 text-emerald-400 mr-2 shrink-0" />
@@ -225,10 +224,11 @@ export const Header: React.FC<HeaderProps> = ({
                   placeholder="Search tees, drops..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none w-32 sm:w-48"
+                  className="bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none w-36 lg:w-48"
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={() => {
                     setShowSearchInput(false);
                     setSearchQuery('');
@@ -240,8 +240,9 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => setShowSearchInput(true)}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors"
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors"
                 title="Search products"
                 aria-label="Search"
               >
@@ -250,54 +251,99 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Track Order */}
+          {/* Mobile Search Button (Toggles full-width overlay) */}
           <button
+            type="button"
+            onClick={() => setMobileSearchOpen((prev) => !prev)}
+            className="md:hidden min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors"
+            title="Search products"
+            aria-label="Search"
+          >
+            {mobileSearchOpen ? <X className="w-5 h-5 text-orange-400" /> : <Search className="w-5 h-5" />}
+          </button>
+
+          {/* Desktop Only Utilities: Track, Notifications, Theme */}
+          <button
+            type="button"
             onClick={onOpenOrderStatus}
-            className="min-w-[44px] min-h-[44px] p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors hidden sm:flex items-center gap-1.5"
-            title="Track WhatsApp Order"
+            className="min-w-[40px] min-h-[40px] p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors hidden lg:flex items-center gap-1.5"
+            title="Track Order"
             aria-label="Track Order"
           >
             <Package className="w-5 h-5 text-blue-400" />
-            <span className="text-xs font-bold text-zinc-200 hidden lg:inline">Track</span>
+            <span className="text-xs font-bold text-zinc-200">Track</span>
           </button>
 
-          {/* In-App Notification Center */}
-          <NotificationCenter onOpenDrops={onOpenDrops} onOpenTracking={onOpenOrderStatus} />
+          <div className="hidden md:flex items-center gap-1.5">
+            <NotificationCenter onOpenDrops={onOpenDrops} onOpenTracking={onOpenOrderStatus} />
+            <ThemeSwitcher />
+          </div>
 
-          {/* Daylight / Night Theme Switcher */}
-          <ThemeSwitcher />
-
-          {/* Wishlist */}
+          {/* Wishlist Heart (visible on both mobile & desktop) */}
           <button
+            type="button"
             onClick={onOpenWishlist}
-            className="relative min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors"
+            className="relative min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-zinc-300 hover:text-white hover:bg-zinc-900 rounded-xl transition-colors shrink-0"
             title="Wishlist"
             aria-label="Wishlist"
           >
             <Heart className="w-5 h-5" />
             {totalWishlistCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
                 {totalWishlistCount}
               </span>
             )}
           </button>
 
-          {/* Cart Bag with vibrant orange counter */}
+          {/* Shopping Bag (PROMINENT, ALWAYS VISIBLE & IMPOSSIBLE TO PUSH OFF SCREEN) */}
           <button
+            type="button"
             onClick={handleCartClick}
-            className="relative min-h-[44px] flex items-center gap-2 px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-orange-500/60 rounded-xl text-white transition-all shadow-sm active:scale-95"
+            className="relative min-h-[40px] flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-500 hover:bg-orange-400 text-white rounded-xl transition-all shadow-md active:scale-95 shrink-0 font-bold text-xs"
             aria-label="Shopping Cart"
           >
-            <ShoppingBag className="w-5 h-5 text-orange-400" />
-            <span className="text-xs font-bold hidden sm:inline">Bag</span>
-            {totalItems > 0 && (
-              <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-black flex items-center justify-center shadow-md">
-                {totalItems}
-              </span>
-            )}
+            <ShoppingBag className="w-4.5 h-4.5 text-white shrink-0" />
+            <span className="hidden sm:inline">Bag</span>
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-black/40 text-white text-[11px] font-black flex items-center justify-center font-mono shrink-0">
+              {totalItems}
+            </span>
           </button>
         </div>
       </div>
+
+      {/* Mobile Expandable Search Bar Overlay */}
+      {mobileSearchOpen && (
+        <div className="md:hidden border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-md px-3 sm:px-4 py-2.5 flex items-center gap-2 animate-in slide-in-from-top-2 duration-150">
+          <div className="relative flex-1 flex items-center bg-zinc-900 border border-orange-500/70 rounded-xl px-3 py-2 shadow-inner">
+            <Search className="w-4 h-4 text-orange-400 mr-2 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search tees, drops, prints..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none w-full font-medium"
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1 text-zinc-400 hover:text-white"
+                aria-label="Clear search query"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen(false)}
+            className="text-xs font-bold text-zinc-400 hover:text-white px-2 py-2 shrink-0 cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
@@ -409,7 +455,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>LASS App Icon &amp; APK Package</span>
               </button>
             )}
-            <div className="pt-1">
+            <div className="pt-2 border-t border-zinc-800/70 space-y-2">
+              <NotificationCenter
+                onOpenDrops={() => {
+                  if (onOpenDrops) onOpenDrops();
+                  setMobileMenuOpen(false);
+                }}
+                onOpenTracking={() => {
+                  if (onOpenOrderStatus) onOpenOrderStatus();
+                  setMobileMenuOpen(false);
+                }}
+                showLabel={true}
+                className="w-full"
+              />
               <ThemeSwitcher showLabel={true} className="w-full justify-between py-2.5 px-3" />
             </div>
 

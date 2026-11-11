@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Trash2, ArrowRight, ShoppingBag, RotateCcw, ShieldCheck, Truck } from 'lucide-react';
+import { X, Trash2, ArrowRight, ShoppingBag, RotateCcw, ShieldCheck, Truck, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatZAR } from '../utils/whatsapp';
 import { BrandConfig } from '../types';
@@ -10,6 +10,8 @@ interface CartDrawerProps {
   onProceedToCheckout: () => void;
   brandConfig: BrandConfig;
 }
+
+const FREE_SHIPPING_THRESHOLD = 800; // Free PAXI delivery over R800
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen,
@@ -45,6 +47,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   if (!isOpen) return null;
 
+  const freeShippingProgress = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100));
+  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+
   return (
     <div
       className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
@@ -54,10 +59,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       aria-label="Shopping Bag Portal"
     >
       <div
-        className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col my-auto max-h-[90vh] transition-all"
+        className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col my-auto max-h-[92vh] transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Symmetrical Header */}
+        {/* Header */}
         <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/80">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
@@ -68,31 +73,64 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <h2 className="font-display font-black text-lg text-white tracking-tight">
                   Your Shopping Bag
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black">
-                  {totalItems} {totalItems === 1 ? 'item' : 'items'}
+                <span className="font-mono text-xs font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
+                  {totalItems} {totalItems === 1 ? 'piece' : 'pieces'}
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400">
-                {brandConfig.brandName} • Kasi Streetwear 2026
+                {brandConfig.brandName} · Authentic Kasi Streetwear
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            className="min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
             aria-label="Close shopping bag"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Undo Banner if an item was recently removed */}
+        {/* Free Shipping Progress Indicator */}
+        <div className="bg-zinc-900/90 border-b border-zinc-800/80 px-4 py-2.5 space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 text-zinc-300 font-medium">
+              <Truck className="w-3.5 h-3.5 text-orange-400" />
+              {amountToFreeShipping === 0 ? (
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Free PAXI Courier Unlocked!
+                </span>
+              ) : (
+                <span>
+                  Add <strong className="text-white font-bold">{formatZAR(amountToFreeShipping)}</strong> for free PAXI delivery
+                </span>
+              )}
+            </div>
+            <span className="font-mono text-[11px] text-zinc-400 font-bold">
+              {freeShippingProgress}%
+            </span>
+          </div>
+
+          <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 rounded-full ${
+                amountToFreeShipping === 0
+                  ? 'bg-emerald-500'
+                  : 'bg-gradient-to-r from-orange-500 to-amber-400'
+              }`}
+              style={{ width: `${freeShippingProgress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Undo Banner */}
         {lastRemovedItem && (
           <div className="bg-orange-950/60 border-b border-orange-500/30 px-4 py-2 flex items-center justify-between text-xs text-orange-200">
             <span className="truncate pr-2">Removed "{lastRemovedItem.product.name}"</span>
             <button
               onClick={undoRemove}
-              className="flex items-center gap-1 font-bold text-orange-400 hover:text-white underline shrink-0"
+              className="flex items-center gap-1 font-bold text-orange-400 hover:text-white underline shrink-0 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Undo</span>
@@ -100,19 +138,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         )}
 
-        {/* PAXI Courier Info Bar */}
-        <div className="bg-emerald-950/40 border-b border-emerald-800/40 px-4 py-2.5 flex items-center justify-between text-xs text-emerald-200">
-          <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>PAXI PEP nationwide courier available at checkout</span>
-          </div>
-          <span className="font-bold text-orange-400 shrink-0">from R60</span>
-        </div>
-
         {/* Cart Items List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
           {cart.length === 0 ? (
-            <div className="text-center py-14 sm:py-16 space-y-4 text-zinc-400">
+            <div className="text-center py-14 space-y-4 text-zinc-400">
               <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-600">
                 <ShoppingBag className="w-8 h-8 text-orange-400/50" />
               </div>
@@ -124,7 +153,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+                className="px-6 py-2.5 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20 cursor-pointer"
               >
                 Start Shopping
               </button>
@@ -148,17 +177,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {item.product.name}
                   </h4>
 
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-400">
-                    <span className="bg-black/80 px-2 py-0.5 rounded text-[11px] font-bold text-orange-400 border border-zinc-800">
-                      Size: {item.selectedSize}
-                    </span>
-                    <span className="bg-black/80 px-2 py-0.5 rounded text-[11px] font-medium text-blue-300 border border-zinc-800">
-                      {item.selectedColour}
-                    </span>
+                  {/* Clean unboxed variant metadata */}
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                    <span className="font-semibold text-orange-400">Size: {item.selectedSize}</span>
+                    <span aria-hidden="true" className="text-zinc-600">·</span>
+                    <span className="text-zinc-300">{item.selectedColour}</span>
                   </div>
 
                   <div className="flex items-center justify-between pt-0.5">
-                    <span className="font-black text-white text-sm font-display">
+                    <span className="font-black text-white text-sm font-display tabular-nums">
                       {formatZAR(item.product.price * item.quantity)}
                     </span>
 
@@ -166,17 +193,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <div className="flex items-center border border-zinc-800 rounded-lg bg-black overflow-hidden">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="px-2.5 py-1 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold transition-colors"
+                        className="px-2.5 py-1 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold transition-colors cursor-pointer"
                         aria-label="Decrease quantity"
                       >
                         -
                       </button>
-                      <span className="px-2.5 py-1 text-xs font-bold text-white min-w-6 text-center">
+                      <span className="px-2.5 py-1 text-xs font-bold text-white min-w-6 text-center tabular-nums">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="px-2.5 py-1 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold transition-colors"
+                        className="px-2.5 py-1 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold transition-colors cursor-pointer"
                         aria-label="Increase quantity"
                       >
                         +
@@ -185,10 +212,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                 </div>
 
-                {/* Remove Button - 44px touch target */}
+                {/* Remove Button */}
                 <button
                   onClick={() => removeFromCart(item.id)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800/80 rounded-lg transition-colors ml-0.5 shrink-0"
+                  className="min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800/80 rounded-lg transition-colors ml-0.5 shrink-0 cursor-pointer"
                   title="Remove item"
                   aria-label="Remove item"
                 >
@@ -201,23 +228,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {/* Footer Subtotal & Checkout Button */}
         {cart.length > 0 && (
-          <div className="p-4 sm:p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] border-t border-zinc-800 bg-zinc-900/90 space-y-3">
+          <div className="p-4 sm:p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] border-t border-zinc-800 bg-zinc-900/95 space-y-3">
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-zinc-400">
                 <span>Bag Subtotal</span>
-                <span className="font-bold text-white text-sm">{formatZAR(subtotal)}</span>
+                <span className="font-bold text-white text-sm tabular-nums">{formatZAR(subtotal)}</span>
               </div>
               <div className="flex justify-between text-zinc-400">
                 <span>Est. PAXI Delivery</span>
-                <span className="text-blue-300 font-semibold">Calculated next step (from R60)</span>
+                <span className="text-blue-300 font-semibold">
+                  {amountToFreeShipping === 0 ? 'FREE' : 'Calculated at checkout (from R60)'}
+                </span>
               </div>
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex justify-between items-baseline">
               <span className="font-display font-black text-xs sm:text-sm text-white uppercase tracking-wider">
-                Estimated Total
+                Total
               </span>
-              <span className="font-display font-black text-xl text-white">
+              <span className="font-display font-black text-xl text-white tabular-nums">
                 {formatZAR(subtotal)}
               </span>
             </div>
@@ -227,22 +256,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 onClose();
                 onProceedToCheckout();
               }}
-              className="w-full py-3.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-orange-500/25 transition-transform active:scale-95"
+              className="w-full py-3.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-orange-500/25 transition-transform active:scale-95 cursor-pointer"
             >
-              <span>Proceed to Checkout &amp; Pay</span>
+              <span>Proceed to Checkout</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
             <div className="flex items-center justify-between pt-1">
               <button
                 onClick={clearCart}
-                className="text-[11px] text-zinc-500 hover:text-zinc-400 transition-colors underline"
+                className="text-[11px] text-zinc-500 hover:text-zinc-400 transition-colors underline cursor-pointer"
               >
                 Clear Bag
               </button>
               <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Pay In-App • Card &amp; Capitec Pay</span>
+                <span>Pay In-App · Card &amp; Capitec Pay</span>
               </div>
             </div>
           </div>

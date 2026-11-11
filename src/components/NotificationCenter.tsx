@@ -5,6 +5,8 @@ import { AppNotification } from '../types';
 interface NotificationCenterProps {
   onOpenDrops?: () => void;
   onOpenTracking?: (orderNumber?: string) => void;
+  showLabel?: boolean;
+  className?: string;
 }
 
 const DEFAULT_NOTIFICATIONS: AppNotification[] = [
@@ -39,6 +41,8 @@ const DEFAULT_NOTIFICATIONS: AppNotification[] = [
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onOpenDrops,
   onOpenTracking,
+  showLabel = false,
+  className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
@@ -108,25 +112,43 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${className}`} ref={dropdownRef}>
       {/* Bell Button */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Notification center"
-        className="relative min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+        className={
+          showLabel
+            ? "w-full py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-left flex items-center justify-between text-zinc-300 hover:text-white border border-zinc-800 transition-colors cursor-pointer"
+            : "relative min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
+        }
       >
-        <Bell className="w-4 h-4" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white font-mono text-[10px] font-black flex items-center justify-center shadow-md">
-            {unreadCount}
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center justify-center">
+            <Bell className="w-4 h-4 text-orange-400" />
+            {unreadCount > 0 && !showLabel && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white font-mono text-[10px] font-black flex items-center justify-center shadow-md">
+                {unreadCount}
+              </span>
+            )}
+          </div>
+          {showLabel && (
+            <span className="font-semibold text-sm text-zinc-200">
+              Notifications &amp; Drops Radar
+            </span>
+          )}
+        </div>
+        {showLabel && (
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold">
+            {unreadCount > 0 ? `${unreadCount} new` : 'All caught up'}
           </span>
         )}
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in duration-150">
+        <div className={`absolute ${showLabel ? 'left-0 right-0 w-full' : 'right-0 w-80 sm:w-96'} mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in duration-150`}>
           {/* Header */}
           <div className="p-3.5 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-2">

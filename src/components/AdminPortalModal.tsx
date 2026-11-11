@@ -36,7 +36,9 @@ import {
   Sliders,
   Key,
   Users,
-  Printer
+  Printer,
+  Flame,
+  Star
 } from 'lucide-react';
 import { Product, BrandConfig, SubmittedOrder } from '../types';
 import { formatZAR, normalizeWhatsAppNumber } from '../utils/whatsapp';
@@ -53,6 +55,8 @@ import {
 import { SalesAnalyticsView } from './SalesAnalyticsView';
 import { CustomerDirectoryView } from './CustomerDirectoryView';
 import { PrintableInvoiceModal } from './PrintableInvoiceModal';
+import { AdminDropsView } from './AdminDropsView';
+import { AdminReviewsView } from './AdminReviewsView';
 
 interface AdminPortalModalProps {
   isOpen: boolean;
@@ -91,8 +95,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     return existing;
   });
 
-  // Active Navigation Tab: Segmented control between Orders, Inventory, Analytics, Customers CRM, and Site Configuration
-  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'analytics' | 'customers' | 'config'>('orders');
+  // Active Navigation Tab: Segmented control between Orders, Inventory, Drops, Reviews, Analytics, Customers CRM, and Site Configuration
+  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'drops' | 'reviews' | 'analytics' | 'customers' | 'config'>('orders');
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<SubmittedOrder | null>(null);
   const [configForm, setConfigForm] = useState<BrandConfig>(brandConfig);
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
@@ -726,13 +730,31 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const filteredOrders = useMemo(() => {
     return savedOrders.filter((ord) => {
       if (orderStatusFilter !== 'all') {
-        if (
-          orderStatusFilter === 'action_needed' &&
-          ord.status !== 'whatsapp_generated' &&
-          ord.status !== 'pending_verification'
-        ) {
-          return false;
-        } else if (orderStatusFilter !== 'action_needed' && ord.status !== orderStatusFilter) {
+        if (orderStatusFilter === 'action_needed') {
+          if (
+            ord.status !== 'whatsapp_generated' &&
+            ord.status !== 'pending_verification' &&
+            ord.status !== 'awaiting_payment'
+          ) {
+            return false;
+          }
+        } else if (orderStatusFilter === 'payment_confirmed') {
+          if (ord.status !== 'payment_confirmed' && ord.paymentStatus !== 'paid') {
+            return false;
+          }
+        } else if (orderStatusFilter === 'dispatched_paxi') {
+          if (
+            ord.status !== 'dispatched_paxi' &&
+            ord.status !== 'dispatched' &&
+            ord.status !== 'out_for_delivery'
+          ) {
+            return false;
+          }
+        } else if (orderStatusFilter === 'completed') {
+          if (ord.status !== 'completed' && ord.status !== 'delivered') {
+            return false;
+          }
+        } else if (ord.status !== orderStatusFilter) {
           return false;
         }
       }
@@ -944,7 +966,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 <nav
                   role="tablist"
                   aria-label="Admin command center views"
-                  className="w-full sm:w-auto p-1 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 shadow-inner grid grid-cols-2 sm:inline-flex items-center gap-1 select-none"
+                  className="w-full sm:w-auto p-1 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 shadow-inner flex flex-wrap items-center gap-1 select-none"
                 >
                   {/* Segment 1: Order History */}
                   <button
@@ -977,7 +999,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                     aria-selected={activeTab === 'inventory'}
                     aria-controls="tabpanel-inventory"
                     onClick={() => setActiveTab('inventory')}
-                    className={`px-2.5 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${
+                    className={`px-2.5 sm:px-3 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${
                       activeTab === 'inventory'
                         ? 'bg-zinc-800 text-blue-400 shadow-md border border-blue-500/40 ring-1 ring-blue-500/20'
                         : 'text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-transparent'
@@ -997,6 +1019,40 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                         {metrics.lowStockItems} low
                       </span>
                     )}
+                  </button>
+
+                  {/* Segment: LASS Drops */}
+                  <button
+                    role="tab"
+                    id="tab-drops"
+                    aria-selected={activeTab === 'drops'}
+                    aria-controls="tabpanel-drops"
+                    onClick={() => setActiveTab('drops')}
+                    className={`px-2.5 sm:px-3 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${
+                      activeTab === 'drops'
+                        ? 'bg-zinc-800 text-orange-400 shadow-md border border-orange-500/40 ring-1 ring-orange-500/20'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                  >
+                    <Flame className={`w-4 h-4 shrink-0 ${activeTab === 'drops' ? 'text-orange-400' : 'text-zinc-400'}`} />
+                    <span className="truncate">Drops</span>
+                  </button>
+
+                  {/* Segment: Customer Reviews */}
+                  <button
+                    role="tab"
+                    id="tab-reviews"
+                    aria-selected={activeTab === 'reviews'}
+                    aria-controls="tabpanel-reviews"
+                    onClick={() => setActiveTab('reviews')}
+                    className={`px-2.5 sm:px-3 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 ${
+                      activeTab === 'reviews'
+                        ? 'bg-zinc-800 text-amber-400 shadow-md border border-amber-500/40 ring-1 ring-amber-500/20'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                  >
+                    <Star className={`w-4 h-4 shrink-0 ${activeTab === 'reviews' ? 'text-amber-400' : 'text-zinc-400'}`} />
+                    <span className="truncate">Reviews</span>
                   </button>
 
                   {/* Segment 3: Sales Analytics Dashboard */}
@@ -1840,6 +1896,20 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* TAB: LASS DROPS MANAGEMENT */}
+              {activeTab === 'drops' && (
+                <div id="tabpanel-drops" role="tabpanel" aria-labelledby="tab-drops" className="max-w-6xl">
+                  <AdminDropsView allProducts={localProducts} onNotify={showNotification} />
+                </div>
+              )}
+
+              {/* TAB: CUSTOMER REVIEWS MODERATION */}
+              {activeTab === 'reviews' && (
+                <div id="tabpanel-reviews" role="tabpanel" aria-labelledby="tab-reviews" className="max-w-6xl">
+                  <AdminReviewsView allProducts={localProducts} onNotify={showNotification} />
                 </div>
               )}
 
