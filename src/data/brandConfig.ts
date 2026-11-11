@@ -12,7 +12,6 @@ export const INITIAL_BRAND_CONFIG: BrandConfig = {
   paxiStandardFee: 60,
   paxiExpressFee: 100,
   paxiLeadDays: '5 - 10 business days',
-  freeDeliveryThreshold: 800,
 };
 
 export const BRAND_STORY_PARAGRAPHS = [

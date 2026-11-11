@@ -1017,7 +1017,7 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({
             <div className="flex justify-between text-zinc-400">
               <span>Delivery Fee:</span>
               <span className="font-mono text-white">
-                {order.deliveryFee === 0 ? 'FREE' : formatZAR(order.deliveryFee)}
+                {order.deliveryFee === 0 ? 'R0 (Direct Collection)' : formatZAR(order.deliveryFee)}
               </span>
             </div>
             <div className="flex justify-between text-sm font-bold text-white pt-1 border-t border-zinc-800/60">

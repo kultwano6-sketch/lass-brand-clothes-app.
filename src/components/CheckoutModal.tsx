@@ -785,7 +785,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="flex justify-between text-zinc-300">
                     <span>Delivery Fee ({customer.deliveryMethod.toUpperCase()})</span>
                     <span className="font-bold text-blue-300 font-mono">
-                      {deliveryFee === 0 ? 'FREE' : formatZAR(deliveryFee)}
+                      {deliveryFee === 0 ? 'R0 (Direct Pickup)' : formatZAR(deliveryFee)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-zinc-800 font-display">

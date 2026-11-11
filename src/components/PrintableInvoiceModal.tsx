@@ -53,7 +53,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({
       ),
       `----------------------------------------`,
       `Subtotal: ${formatZAR(order.subtotal || order.estimatedTotal - order.deliveryFee)}`,
-      `PAXI Delivery: ${order.deliveryFee === 0 ? 'FREE (Orders over R800)' : formatZAR(order.deliveryFee)}`,
+      `PAXI Delivery: ${order.deliveryFee === 0 ? 'Direct Collection (R0)' : formatZAR(order.deliveryFee)}`,
       `TOTAL: ${formatZAR(order.estimatedTotal)}`,
       `========================================`,
       `Enquiries: WhatsApp ${brandConfig.displayWhatsApp} | ${brandConfig.email}`,
@@ -265,7 +265,7 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({
                 <div className="flex justify-between text-xs text-zinc-600">
                   <span>PAXI PEP Delivery:</span>
                   <span className="font-mono">
-                    {order.deliveryFee === 0 ? 'FREE (Threshold met)' : formatZAR(order.deliveryFee)}
+                    {order.deliveryFee === 0 ? 'Direct Collection (R0)' : formatZAR(order.deliveryFee)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-black text-zinc-900 border-t border-zinc-300 pt-1.5">

@@ -139,7 +139,6 @@ export interface BrandConfig {
   paxiStandardFee: number; // R60
   paxiExpressFee: number; // R100
   paxiLeadDays: string; // "5-10 business days"
-  freeDeliveryThreshold?: number;
   bannerAnnouncement?: {
     enabled: boolean;
     text: string;

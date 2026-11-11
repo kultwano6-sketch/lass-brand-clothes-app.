@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Trash2, ArrowRight, ShoppingBag, RotateCcw, ShieldCheck, Truck, Sparkles } from 'lucide-react';
+import { X, Trash2, ArrowRight, ShoppingBag, RotateCcw, ShieldCheck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatZAR } from '../utils/whatsapp';
 import { BrandConfig } from '../types';
@@ -10,8 +10,6 @@ interface CartDrawerProps {
   onProceedToCheckout: () => void;
   brandConfig: BrandConfig;
 }
-
-const FREE_SHIPPING_THRESHOLD = 800; // Free PAXI delivery over R800
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen,
@@ -46,9 +44,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const freeShippingProgress = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100));
-  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
 
   return (
     <div
@@ -89,39 +84,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Free Shipping Progress Indicator */}
-        <div className="bg-zinc-900/90 border-b border-zinc-800/80 px-4 py-2.5 space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 text-zinc-300 font-medium">
-              <Truck className="w-3.5 h-3.5 text-orange-400" />
-              {amountToFreeShipping === 0 ? (
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Free PAXI Courier Unlocked!
-                </span>
-              ) : (
-                <span>
-                  Add <strong className="text-white font-bold">{formatZAR(amountToFreeShipping)}</strong> for free PAXI delivery
-                </span>
-              )}
-            </div>
-            <span className="font-mono text-[11px] text-zinc-400 font-bold">
-              {freeShippingProgress}%
-            </span>
-          </div>
-
-          <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-500 rounded-full ${
-                amountToFreeShipping === 0
-                  ? 'bg-emerald-500'
-                  : 'bg-gradient-to-r from-orange-500 to-amber-400'
-              }`}
-              style={{ width: `${freeShippingProgress}%` }}
-            />
-          </div>
         </div>
 
         {/* Undo Banner */}
@@ -237,7 +199,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="flex justify-between text-zinc-400">
                 <span>Est. PAXI Delivery</span>
                 <span className="text-blue-300 font-semibold">
-                  {amountToFreeShipping === 0 ? 'FREE' : 'Calculated at checkout (from R60)'}
+                  From R60 (PEP Store Pickup)
                 </span>
               </div>
             </div>

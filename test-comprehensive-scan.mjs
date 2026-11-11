@@ -136,7 +136,7 @@ async function runComprehensiveScan() {
     console.log(`✓ Scan #${testCount}: Special characters (apostrophes, ampersands, hashes) securely handled in checkout session`);
   }
 
-  // Test 7: Free delivery qualifying threshold (R800+)
+  // Test 7: Standard PAXI delivery fee verification (R60 standard)
   {
     testCount++;
     const req = new Request('https://lass-brand-clothes-app.harvestkelass.workers.dev/api/payfast/create-checkout', {
