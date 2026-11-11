@@ -252,10 +252,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </div>
 
             <button
-              onClick={() => {
-                onClose();
-                onProceedToCheckout();
-              }}
+              type="button"
+              onClick={onProceedToCheckout}
               className="w-full py-3.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-orange-500/25 transition-transform active:scale-95 cursor-pointer"
             >
               <span>Proceed to Checkout</span>

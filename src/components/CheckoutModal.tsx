@@ -120,7 +120,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
+    // Reset transient states on open if previously completed
+    if (currentStep === 'success') {
+      setCurrentStep('details');
+      setFinalOrder(null);
+    }
+    setValidationError('');
+    setIsSubmitting(false);
+    setRedirectMessage('');
+    document.body.style.overflow = 'hidden';
 
     const handlePopState = (e: PopStateEvent) => {
       const state = e.state;
@@ -132,9 +145,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isPaxiLocatorModalOpen && !isPrintModalOpen) {
+        onClose();
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isOpen, isPaxiLocatorModalOpen, isPrintModalOpen]);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, isPaxiLocatorModalOpen, isPrintModalOpen, onClose]);
 
   // Validate the current branch selection live
   const paxiValidation = validatePaxiBranchSelection(customer.pepStoreBranch);
@@ -333,7 +358,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="PayFast Secure Checkout"
+    >
       <div
         className="relative w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col my-auto max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}

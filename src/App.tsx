@@ -161,6 +161,19 @@ function MainShopContent() {
     initAppNavigation(activeCategory);
   }, []);
 
+  // Sync navigation history state when cart is opened (e.g. from addToCart)
+  useEffect(() => {
+    if (isCartOpen) {
+      const current = window.history.state as AppNavigationState | null;
+      if (!current || (current.view !== 'cart' && current.view !== 'checkout')) {
+        pushScreenState('cart', {
+          category: activeCategory,
+          scrollY: window.scrollY,
+        });
+      }
+    }
+  }, [isCartOpen, activeCategory]);
+
   // Central Popstate Router for Android System Back Button & Gesture Navigation
   useEffect(() => {
     const onPopState = (e: PopStateEvent) => {
@@ -446,12 +459,13 @@ function MainShopContent() {
   };
 
   const handleProceedToCheckout = () => {
+    setIsCartOpen(false);
+    setSelectedProduct(null);
+    setIsCheckoutOpen(true);
     pushScreenState('checkout', {
       category: activeCategory,
       scrollY: window.scrollY,
     });
-    setIsCartOpen(false);
-    setIsCheckoutOpen(true);
   };
 
   const handleCloseCheckout = () => {
