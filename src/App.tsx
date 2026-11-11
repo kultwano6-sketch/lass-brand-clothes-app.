@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Sparkles, ArrowRight, Truck, MessageSquare, ShieldCheck, Flame, SlidersHorizontal, Grid, Columns, Package, CreditCard } from 'lucide-react';
+import { Sparkles, Truck, MessageSquare, ShieldCheck, Flame, SlidersHorizontal, Grid, Columns, Package, CreditCard } from 'lucide-react';
 import { Product, BrandConfig, SubmittedOrder } from './types';
 import { INITIAL_PRODUCTS } from './data/initialProducts';
 import { INITIAL_BRAND_CONFIG } from './data/brandConfig';
@@ -803,30 +803,6 @@ function MainShopContent() {
                   {brandConfig.manifesto}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      handleSelectCategory('2026-new-drops');
-                      const el = document.getElementById('catalog-section');
-                      el?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-orange-500/20 transition-all active:scale-95 cursor-pointer"
-                  >
-                    <span>Shop 2026 Drops (R300)</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      handleSelectCategory('t-shirts');
-                      const el = document.getElementById('catalog-section');
-                      el?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-colors border border-zinc-700/80 cursor-pointer"
-                  >
-                    Pocket &amp; Back Prints (R250 - R280)
-                  </button>
-                </div>
 
                 {/* Reassurance Ribbon: Clean, unboxed trust markers */}
                 <div className="pt-5 border-t border-zinc-800/80 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-zinc-400">
