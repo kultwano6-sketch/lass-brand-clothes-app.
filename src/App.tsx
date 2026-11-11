@@ -782,7 +782,7 @@ function MainShopContent() {
         ) : (
           <>
             {/* HERO SECTION: High-Fashion Streetwear Editorial */}
-            <section className="relative rounded-3xl overflow-hidden border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-6 sm:p-10 lg:p-12 mb-10 shadow-2xl">
+            <section className="hero-section relative rounded-3xl overflow-hidden border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-6 sm:p-10 lg:p-12 mb-10 shadow-2xl">
               {/* Subtle ambient lighting */}
               <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />

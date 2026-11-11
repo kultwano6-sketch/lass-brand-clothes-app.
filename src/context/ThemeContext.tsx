@@ -29,12 +29,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.add('light');
       // Update theme-color meta for browser chrome
       const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-      if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#faf8f5');
     } else {
       root.classList.remove('light');
       root.classList.add('dark');
       const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-      if (metaThemeColor) metaThemeColor.setAttribute('content', '#047857');
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#09090b');
     }
   };
 
